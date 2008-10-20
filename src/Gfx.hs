@@ -6,19 +6,9 @@
 
 module Main where
 
-import qualified AnsiColor as C
-import qualified Control.Arrow as CA
-import qualified Control.Monad as CM
-import qualified Data.Array as Arr
-import qualified Data.Char as Chr
-import qualified Data.List as Lst
-import qualified Data.Maybe as Mby
-import qualified Paths_goa as Paths
-import qualified System.Console.GetOpt as Opt
-import qualified System.Environment as Env
-import qualified System.IO as SIO
-import qualified System.Process as SP
-
+import Control.Monad
+import Paths_goa
+import System.Environment
 import qualified Graphics.UI.SDL as SDL
 import qualified Graphics.UI.SDL.Image as Img
 
@@ -60,7 +50,7 @@ mainLoop s = do
     SDL.KeyDown (SDL.Keysym SDL.SDLK_q _ _) -> return True
     SDL.Quit -> return True
     _ -> return False
-  CM.unless quit $ mainLoop s
+  unless quit $ mainLoop s
 
 startGfx :: Game -> IO Game
 startGfx gm = do
@@ -70,8 +60,8 @@ startGfx gm = do
     spotPx = gSpotPx gfx
   --SDL.showCursor False
   screen <- SDL.setVideoMode scrW scrH 0 []
-  progName <- Env.getProgName
-  dataDir <- Paths.getDataDir
+  progName <- getProgName
+  dataDir <- getDataDir
   let imgDir = dataDir ++ "/pics"
   pics <- mapM Img.load $ map (\x -> imgDir ++ "/" ++ x) imgNames
   SDL.setCaption progName ""
