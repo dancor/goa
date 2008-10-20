@@ -1,5 +1,6 @@
 module Gfx where
 
+import Control.Concurrent
 import Control.Monad
 import Paths_goa
 import System.Environment
@@ -61,7 +62,9 @@ startGfx gm = do
   SDL.setCaption progName ""
   return $ gm {gBdSize = bdSize, gGfx = gfx {gScreen = screen, gPics = pics}}
 
-main = SDL.withInit [SDL.InitVideo] $ do
+dispHist _ _ _ = return ()
+
+withGfx f = SDL.withInit [SDL.InitVideo] $ do
   g <- startGfx $ Game {
     gBdSize = 19,
     gGfx = Gfx {
@@ -73,4 +76,5 @@ main = SDL.withInit [SDL.InitVideo] $ do
   let
     s = gGfx g
   drawBd s
-  mainLoop s
+  forkIO $ mainLoop s
+  f

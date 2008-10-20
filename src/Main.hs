@@ -5,6 +5,7 @@
 -- happs?-net front-end (no)
 
 import Control.Arrow
+import Control.Monad
 import Data.Array.Base
 import Data.IntMap
 import Data.List
@@ -17,14 +18,14 @@ import qualified PosMTree as PMT
 import qualified Txt
 
 
-data Flag = BoardSize String | PlayAs String | Ascii deriving Show
+data Flag = BoardSize String | PlayAs String | TextDisp deriving Show
 type OptVals = (Int, Char, Bool)
 
 options :: [OptDescr Flag]
 options = [
   Option ['n'] ["boardsize"] (ReqArg BoardSize "n") "board size",
   Option ['c'] ["color"] (ReqArg PlayAs "b|w|a|n") "color to play as",
-  Option ['a'] ["ascii"] (NoArg Ascii) "no gfx"
+  Option ['t'] ["text"] (NoArg TextDisp) "unicode text mode"
   ]
 
 procOpt :: Flag -> OptVals -> OptVals
@@ -36,7 +37,7 @@ procOpt f (bdN, c, gfx) = case f of
     "a" -> (bdN, 'a', gfx)
     "n" -> (bdN, 'n', gfx)
     _ -> error "invalid play as arg (b|w|a|n)"
-  Ascii -> (bdN, c, False)
+  TextDisp -> (bdN, c, False)
 
 main :: IO ()
 main = do
@@ -54,10 +55,12 @@ main = do
       'w' -> [Comm 0, Human]
       'a' -> [Human, Human]
       'n' -> [Comm 0, Comm 0]
-  (inp, out, err, pid) <- runInteractiveCommand comm
-  histOrErr <- doTurn Txt.dispHist bdN pl [(inp, out, err, pid)] PMT.empty gfx
-  case histOrErr of
-    Right hist -> do
-      putStrLn "bye"
-    Left err -> do
-      putStrLn err
+    dispF = if gfx then Gfx.dispHist else Txt.dispHist
+  (if gfx then Gfx.withGfx else id) $ do
+    (inp, out, err, pid) <- runInteractiveCommand comm
+    histOrErr <- doTurn dispF bdN pl [(inp, out, err, pid)] PMT.empty gfx
+    case histOrErr of
+      Right hist -> do
+        putStrLn "bye"
+      Left err -> do
+        putStrLn err
