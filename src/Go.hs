@@ -15,57 +15,6 @@ import System.Process
 import qualified AnsiColor as AC
 import qualified PosMTree as PMT
 
--- show board state with highlighted last move
--- currently only nxn with n in [9, 13, 19] supported for print out
-showBdHS :: (BdH, Array Color Int) -> String
-showBdHS (bd, capd) = toUtf $ bg ++
-  cap header (unlines $ zipWith cap (map
-    (padl ' ' logBdN . show)
-    (reverse [1..bdN])) (map (cap " " . intercalate "─") filledBd)) ++
-  unlines [
-    "Blk has capd " ++ show (capd ! Wht),
-    "Wht has capd " ++ show (capd ! Blk)] ++
-  AC.normal where
-    ((xMin, yMin), (xMax, yMax)) = bounds bd
-    bdN = yMax - yMin + 1
-    r = replicate
-    m = case bdN of
-      19 -> r 2 e ++ f ++ r 5 e ++ f ++ r 5 e ++ f ++ r 2 e
-      13 -> r 2 e ++ f ++ r 2 e ++ f ++ r 2 e ++ f ++ r 2 e
-      9 -> r 1 e ++ f ++ r 3 e ++ f ++ r 1 e
-      7 -> r 1 e ++ f ++ r 1 e ++ f ++ r 1 e
-    e = ["├"] ++ r (bdN - 2) "┼" ++ ["┤"]
-    f = case bdN of
-      19 -> [["├"] ++ r 2 "┼" ++ d ++ r 5 "┼" ++ d ++ r 5 "┼" ++
-        d ++ r 2 "┼" ++ ["┤"]]
-      13 -> [["├"] ++ r 2 "┼" ++ d ++ r 2 "┼" ++ d ++ r 2 "┼" ++
-        d ++ r 2 "┼" ++ ["┤"]]
-      9 -> [["├"] ++ r 1 "┼" ++ d ++ r 3 "┼" ++
-        d ++ r 1 "┼" ++ ["┤"]]
-      7 -> [["├"] ++ r 1 "┼" ++ d ++ r 1 "┼" ++
-        d ++ r 1 "┼" ++ ["┤"]]
-    empBd = [["┌"] ++ r (bdN - 2) "┬" ++ ["┐"]] ++ m ++
-      [["└"] ++ r (bdN - 2) "┴" ++ ["┘"]]
-    filledBd = zipWith (zipWith (\fill emp -> case fill of
-        (Emp, _) -> emp
-        (Stone Blk, True) -> bl
-        (Stone Blk, False) -> b
-        (Stone Wht, True) -> wl
-        (Stone Wht, False) -> w
-      )) (reverse $ stripe bdN $ elems bd) empBd
-    b = AC.blue ++ "O" ++ AC.reset ++ bg
-    w = AC.yellow ++ "@" ++ AC.reset ++ bg
-    bl = AC.blue ++ AC.bold ++ "O" ++ AC.reset ++ bg
-    wl = AC.yellow ++ AC.bold ++ "@" ++ AC.reset ++ bg
-    d = ["•"]
-    bg = AC.red ++ AC.blackBg
-    logBdN = if bdN >= 10 then 2 else 1
-    header = " " ++ replicate logBdN ' ' ++ intercalate " "
-      --(map (:[]) (take bdN $ ['a'..'h'] ++ ['j'..'z'])) ++ "\n"
-      (map (:[]) (take bdN $ ['A'..'H'] ++ ['J'..'Z'])) ++ "\n"
-imgNames = map (++ ".png") $ ["wood", "black", "white"] ++
-  [v ++ h | v <- ["t", "m", "b"], h <- ["l", "m", "r"]]
-
 type BdPos = (Int, Int)
 type Comm = (Handle, Handle, Handle, ProcessHandle)
 data Player = Human | Comm Int
@@ -85,15 +34,6 @@ bdHilight :: Move -> Bd -> BdH
 bdHilight m b = case m of
   Pass -> fmap (\p -> (p, False)) b
   Play i -> (fmap (\p -> (p, False)) b) // [(i, (b ! i, True))]
-
--- should i just use data for hist?
-showHist :: Int -> Hist -> Bool -> String
-showHist bdN h gfx = let
-    p = PMT.getPath h
-    l = if null p then Pass else last p
-    bdStInit = (listArray ((1, 1), (bdN, bdN)) $ repeat Emp,
-      listArray (Blk, Wht) $ repeat 0)
-  in showBdHS $ first (bdHilight l) (doMoves bdStInit $ p)
 
 parseInp :: String -> Either String Inp
 parseInp s
@@ -144,12 +84,12 @@ doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
       ) otherComms
     return $ fromJust $ PMT.ascend hist
 
-doTurn :: Int -> [Player] -> [Comm] -> Hist -> Bool -> IO (Either String Hist)
-doTurn bdN pl comms hist@(_, ctx) gfx = let
+
+doTurn dispHist bdN pl comms hist@(_, ctx) gfx = let
     plN = (length $ PMT.getPath hist) `mod` (length pl)
     quit = return $ Right $ hist
   in if isGameOver hist then quit else do
-    putStrLn $ showHist bdN hist gfx
+    dispHist bdN hist gfx
     case pl!!plN of
       Comm n -> let
           p@(inp, out, err, pid) = comms!!n
@@ -169,7 +109,7 @@ doTurn bdN pl comms hist@(_, ctx) gfx = let
               Right (InpMv move) -> do
                 --putStrLn $ show move
                 -- TODO: tell other comms here
-                doTurn bdN pl comms (PMT.descAdd move hist) gfx
+                doTurn dispHist bdN pl comms (PMT.descAdd move hist) gfx
           else do
             return $ Left $ "unexpected response: " ++ s
       Human -> do
@@ -178,15 +118,15 @@ doTurn bdN pl comms hist@(_, ctx) gfx = let
           Undo -> do
             hist' <- doUndo bdN pl hist comms
             hist'' <- doUndo bdN pl hist' comms
-            doTurn bdN pl comms hist'' gfx
+            doTurn dispHist bdN pl comms hist'' gfx
           Quit -> quit
           -- FIXME?: 2-pl spec, is that ok, assumes exist. of comm 0
-          Go -> doTurn bdN ((if plN == 0 then id else reverse) [Comm 0, Human])
+          Go -> doTurn dispHist bdN ((if plN == 0 then id else reverse) [Comm 0, Human])
             comms hist gfx
-          GoAll -> doTurn bdN [Comm 0, Comm 0] comms hist gfx
+          GoAll -> doTurn dispHist bdN [Comm 0, Comm 0] comms hist gfx
           InpMv m -> let
-              cont = doTurn bdN pl comms (PMT.descAdd m hist) gfx
-              errC = doTurn bdN pl comms hist gfx in case m of
+              cont = doTurn dispHist bdN pl comms (PMT.descAdd m hist) gfx
+              errC = doTurn dispHist bdN pl comms hist gfx in case m of
             Play (x, y) -> if x < 1 || y < 1 || x > bdN || y > bdN
               then do
                 putStrLn "move is not on board"

@@ -1,10 +1,20 @@
 -- wrapper to gnugo
 
+-- unicode-text front-end (done)
+-- sdl-graphics front-end (started)
+-- happs?-net front-end (no)
+
+import Control.Arrow
+import Data.Array.Base
+import Data.IntMap
+import Data.List
 import Go
 import System.Console.GetOpt
 import System.Environment
 import System.Process
+import qualified Gfx
 import qualified PosMTree as PMT
+import qualified Txt
 
 main :: IO ()
 main = do
@@ -24,7 +34,7 @@ main = do
       'w' -> [Comm 0, Human]
       'a' -> [Human, Human]
       'n' -> [Comm 0, Comm 0]
-  histOrErr <- doTurn bdN pl [(inp, out, err, pid)] PMT.empty gfx
+  histOrErr <- doTurn Txt.dispHist bdN pl [(inp, out, err, pid)] PMT.empty gfx
   case histOrErr of
     Right hist -> do
       putStrLn "bye"

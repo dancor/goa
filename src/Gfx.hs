@@ -1,10 +1,4 @@
--- wrapper to gnugo
-
--- unicode-text front-end
--- sdl-graphics front-end
--- happs?-net front-end
-
-module Main where
+module Gfx where
 
 import Control.Monad
 import Paths_goa
