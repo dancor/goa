@@ -5,8 +5,8 @@ license-file:   LICENSE
 author:         Daniel Corson
 synopsis:       go color-ascii/gfx client (supports gtp)
 build-type:     Simple
-build-depends:  FUtil, SDL, SDL-image, array, base, containers, haskell98,
-                process
+build-depends:  Cabal, FUtil, SDL, SDL-image, array, base, containers,
+                haskell98, process
 data-files:     pics/black.png pics/lb.png pics/mb.png pics/rb.png pics/lm.png pics/mm.png pics/rm.png pics/lt.png pics/mt.png pics/rt.png pics/white.png pics/wood.png
 
 executable:     goa

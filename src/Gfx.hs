@@ -13,13 +13,14 @@ import qualified Data.Array as Arr
 import qualified Data.Char as Chr
 import qualified Data.List as Lst
 import qualified Data.Maybe as Mby
-import qualified Graphics.UI.SDL as SDL
-import qualified Graphics.UI.SDL.Image as Img
 import qualified Paths_goa as Paths
 import qualified System.Console.GetOpt as Opt
 import qualified System.Environment as Env
 import qualified System.IO as SIO
 import qualified System.Process as SP
+
+import qualified Graphics.UI.SDL as SDL
+import qualified Graphics.UI.SDL.Image as Img
 
 data Game = Game {
   gBdSize :: Int,

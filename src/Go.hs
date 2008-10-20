@@ -1,35 +1,32 @@
 module Go where
 
-import qualified Control.Arrow as CA
-import qualified Control.Monad as CM
-import qualified FUtil as Dnl
-import qualified Data.Array as Arr
-import qualified Data.Char as Chr
+import Control.Arrow
+import Control.Monad
+import FUtil
+import Data.Array
+import Data.Char
 import Data.List
-import qualified Data.Maybe as Mby
-import qualified Graphics.UI.SDL as SDL
-import qualified Graphics.UI.SDL.Image as Img
-import qualified Paths_goa as Paths
-import qualified PosMTree as PMT
-import qualified System.Console.GetOpt as Opt
+import Data.Maybe
+import Paths_goa
+import System.Console.GetOpt
 import System.Environment
-import qualified System.IO as SIO
-import qualified System.Process as SP
-
-import qualified AnsiColor as C
+import System.IO
+import System.Process
+import qualified AnsiColor as AC
+import qualified PosMTree as PMT
 
 -- show board state with highlighted last move
 -- currently only nxn with n in [9, 13, 19] supported for print out
-showBdHS :: (BdH, Arr.Array Color Int) -> String
-showBdHS (bd, capd) = Dnl.toUtf $ bg ++
-  Dnl.cap header (unlines $ zipWith Dnl.cap (map
-    (Dnl.padl ' ' logBdN . show)
-    (reverse [1..bdN])) (map (Dnl.cap " " . intercalate "─") filledBd)) ++
+showBdHS :: (BdH, Array Color Int) -> String
+showBdHS (bd, capd) = toUtf $ bg ++
+  cap header (unlines $ zipWith cap (map
+    (padl ' ' logBdN . show)
+    (reverse [1..bdN])) (map (cap " " . intercalate "─") filledBd)) ++
   unlines [
-    "Blk has capd " ++ show (capd Arr.! Wht),
-    "Wht has capd " ++ show (capd Arr.! Blk)] ++
-  C.normal where
-    ((xMin, yMin), (xMax, yMax)) = Arr.bounds bd
+    "Blk has capd " ++ show (capd ! Wht),
+    "Wht has capd " ++ show (capd ! Blk)] ++
+  AC.normal where
+    ((xMin, yMin), (xMax, yMax)) = bounds bd
     bdN = yMax - yMin + 1
     r = replicate
     m = case bdN of
@@ -55,13 +52,13 @@ showBdHS (bd, capd) = Dnl.toUtf $ bg ++
         (Stone Blk, False) -> b
         (Stone Wht, True) -> wl
         (Stone Wht, False) -> w
-      )) (reverse $ Dnl.stripe bdN $ Arr.elems bd) empBd
-    b = C.blue ++ "O" ++ C.reset ++ bg
-    w = C.yellow ++ "@" ++ C.reset ++ bg
-    bl = C.blue ++ C.bold ++ "O" ++ C.reset ++ bg
-    wl = C.yellow ++ C.bold ++ "@" ++ C.reset ++ bg
+      )) (reverse $ stripe bdN $ elems bd) empBd
+    b = AC.blue ++ "O" ++ AC.reset ++ bg
+    w = AC.yellow ++ "@" ++ AC.reset ++ bg
+    bl = AC.blue ++ AC.bold ++ "O" ++ AC.reset ++ bg
+    wl = AC.yellow ++ AC.bold ++ "@" ++ AC.reset ++ bg
     d = ["•"]
-    bg = C.red ++ C.blackBg
+    bg = AC.red ++ AC.blackBg
     logBdN = if bdN >= 10 then 2 else 1
     header = " " ++ replicate logBdN ' ' ++ intercalate " "
       --(map (:[]) (take bdN $ ['a'..'h'] ++ ['j'..'z'])) ++ "\n"
@@ -70,33 +67,33 @@ imgNames = map (++ ".png") $ ["wood", "black", "white"] ++
   [v ++ h | v <- ["t", "m", "b"], h <- ["l", "m", "r"]]
 
 type BdPos = (Int, Int)
-type Comm = (SIO.Handle, SIO.Handle, SIO.Handle, SP.ProcessHandle)
+type Comm = (Handle, Handle, Handle, ProcessHandle)
 data Player = Human | Comm Int
 data Move = Pass | Play BdPos deriving (Show, Ord, Eq)
 data Inp = InpMv Move | Undo | Go | GoAll | Quit
-data Color = Blk | Wht deriving (Eq, Bounded, Enum, Ord, Arr.Ix, Show)
+data Color = Blk | Wht deriving (Eq, Bounded, Enum, Ord, Ix, Show)
 data BdFill = Emp | Stone Color
-type Bd = Arr.Array BdPos BdFill
-type BdH = Arr.Array BdPos (BdFill, Bool)
-type BdState = (Bd, Arr.Array Color Int)
+type Bd = Array BdPos BdFill
+type BdH = Array BdPos (BdFill, Bool)
+type BdState = (Bd, Array Color Int)
 type Hist = PMT.PosMTree Move
 
 readPosInt :: String -> Maybe Int
-readPosInt s = if not (null s) && all Chr.isDigit s then Just $ read s else Nothing
+readPosInt s = if not (null s) && all isDigit s then Just $ read s else Nothing
 
 bdHilight :: Move -> Bd -> BdH
 bdHilight m b = case m of
   Pass -> fmap (\p -> (p, False)) b
-  Play i -> (fmap (\p -> (p, False)) b) Arr.// [(i, (b Arr.! i, True))]
+  Play i -> (fmap (\p -> (p, False)) b) // [(i, (b ! i, True))]
 
 -- should i just use data for hist?
 showHist :: Int -> Hist -> Bool -> String
 showHist bdN h gfx = let
     p = PMT.getPath h
     l = if null p then Pass else last p
-    bdStInit = (Arr.listArray ((1, 1), (bdN, bdN)) $ repeat Emp,
-      Arr.listArray (Blk, Wht) $ repeat 0)
-  in showBdHS $ CA.first (bdHilight l) (doMoves bdStInit $ p)
+    bdStInit = (listArray ((1, 1), (bdN, bdN)) $ repeat Emp,
+      listArray (Blk, Wht) $ repeat 0)
+  in showBdHS $ first (bdHilight l) (doMoves bdStInit $ p)
 
 parseInp :: String -> Either String Inp
 parseInp s
@@ -108,20 +105,20 @@ parseInp s
  | s == "" = Left $ "empty string?"
  | otherwise =
   let ([s1], s2) = splitAt 1 s
-      xRaw = Chr.ord $ Chr.toLower s1
-      x = xRaw - Chr.ord 'a' + if xRaw > Chr.ord 'i' then 0 else 1
+      xRaw = ord $ toLower s1
+      x = xRaw - ord 'a' + if xRaw > ord 'i' then 0 else 1
       y = readPosInt s2 in
     case y of
       Nothing -> Left "could not parse"
       Just yy -> if yy < 1 || yy > 19 then Left "out of range" else Right $ InpMv $ Play (x, yy)
 
-del i = uncurry (++) . CA.second tail . splitAt i
+del i = uncurry (++) . second tail . splitAt i
 isComm p = case p of
   Comm _ -> True
   _ -> False
 
 whileM :: Monad m => m Bool -> m b -> m ()
-whileM test f = test >>= \t -> CM.when t $ f >> whileM test f
+whileM test f = test >>= \t -> when t $ f >> whileM test f
 
 doUndo :: Int -> [Player] -> Hist -> [Comm] -> IO Hist
 doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
@@ -130,22 +127,22 @@ doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
     return hist
   else do
     mapM_ (\p@(inp, out, err, pid) -> do
-      SIO.hPutStrLn inp "undo"
-      SIO.hFlush inp
-      s <- SIO.hGetLine out
+      hPutStrLn inp "undo"
+      hFlush inp
+      s <- hGetLine out
       putStrLn s
-      s <- SIO.hGetLine out
+      s <- hGetLine out
       putStrLn s
 
-      SIO.hPutStrLn inp "showboard"
-      SIO.hFlush inp
+      hPutStrLn inp "showboard"
+      hFlush inp
       {-
       hWaitForInput out 10
       whileM (hReady out) $ hGetLine out >>= putStrLn
       -}
-      whileM (SIO.hWaitForInput out 10) $ SIO.hGetLine out >>= putStrLn
+      whileM (hWaitForInput out 10) $ hGetLine out >>= putStrLn
       ) otherComms
-    return $ Mby.fromJust $ PMT.ascend hist
+    return $ fromJust $ PMT.ascend hist
 
 doTurn :: Int -> [Player] -> [Comm] -> Hist -> Bool -> IO (Either String Hist)
 doTurn bdN pl comms hist@(_, ctx) gfx = let
@@ -158,15 +155,15 @@ doTurn bdN pl comms hist@(_, ctx) gfx = let
           p@(inp, out, err, pid) = comms!!n
           -- TODO: not using this?  no multicomm support
           otherComms = del n comms in do
-        SIO.hPutStrLn inp "genmove w"
-        SIO.hFlush inp
-        s <- SIO.hGetLine out
+        hPutStrLn inp "genmove w"
+        hFlush inp
+        s <- hGetLine out
         putStrLn s
-        s2 <- SIO.hGetLine out
+        s2 <- hGetLine out
         putStrLn s2
         if "= " `isPrefixOf` s
           then do
-            case parseInp $ map Chr.toLower $ drop 2 s of
+            case parseInp $ map toLower $ drop 2 s of
               Left err -> do
                 return $ Left err
               Right (InpMv move) -> do
@@ -176,7 +173,7 @@ doTurn bdN pl comms hist@(_, ctx) gfx = let
           else do
             return $ Left $ "unexpected response: " ++ s
       Human -> do
-        mv <- Dnl.repInp "move: " parseInp
+        mv <- repInp "move: " parseInp
         case mv of
           Undo -> do
             hist' <- doUndo bdN pl hist comms
@@ -196,13 +193,13 @@ doTurn bdN pl comms hist@(_, ctx) gfx = let
                 errC
               else do
                 ss <- mapM (\p@(inp, out, err, pid) -> do
-                  SIO.hPutStrLn inp $ "play b " ++
-                    [Chr.chr $ Chr.ord 'a' + x - if x < 9 then 1 else 0] ++
+                  hPutStrLn inp $ "play b " ++
+                    [chr $ ord 'a' + x - if x < 9 then 1 else 0] ++
                     show y
-                  SIO.hFlush inp
-                  s1 <- SIO.hGetLine out
+                  hFlush inp
+                  s1 <- hGetLine out
                   putStrLn s1
-                  s2 <- SIO.hGetLine out
+                  s2 <- hGetLine out
                   putStrLn s2
                   return s1) comms
                 if "?" `isPrefixOf` head ss
@@ -220,11 +217,11 @@ isEmp Emp = True
 isEmp _ = False
 
 gpLibs :: [BdPos] -> Bd -> [BdPos]
-gpLibs gp b = filter (\x -> isEmp $ b Arr.! x) . nub . concat . map (nbrs b) $ gp
+gpLibs gp b = filter (\x -> isEmp $ b ! x) . nub . concat . map (nbrs b) $ gp
 
 nbrs :: Bd -> BdPos -> [BdPos]
 nbrs b (x, y) = let
-    ((xMin, yMin), (xMax, yMax)) = Arr.bounds b
+    ((xMin, yMin), (xMax, yMax)) = bounds b
     bdN = yMax - yMin + 1 in
   (if x > 1 then [(x - 1, y)] else []) ++
   (if y > 1 then [(x, y - 1)] else []) ++
@@ -232,43 +229,43 @@ nbrs b (x, y) = let
   (if y < bdN then [(x, y + 1)] else [])
 
 getGp :: BdPos -> Bd -> [BdPos]
-getGp i b = case b Arr.! i of
+getGp i b = case b ! i of
   Emp -> []
   Stone c -> growGp i c b []
 growGp :: BdPos -> Color -> Bd -> [BdPos] -> [BdPos]
-growGp i c b gp = case b Arr.! i of
+growGp i c b gp = case b ! i of
   Stone c' -> if c' == c then if null $ filter (== i) gp
-      then Dnl.dlof (gp ++ [i]) $ map (\x -> growGp x c b) $ nbrs b i
+      then dlof (gp ++ [i]) $ map (\x -> growGp x c b) $ nbrs b i
       else gp
     else gp
   _ -> gp
 
 checkDead :: BdPos -> BdState -> BdState
-checkDead i bd@(b, capd) = case b Arr.! i of
+checkDead i bd@(b, capd) = case b ! i of
   Emp -> bd
   Stone c -> let g = getGp i b in
     if null (gpLibs g b)
-       then (b Arr.// [(i, Emp) | i <- g], capd Arr.// [(c, capd Arr.! c + length g)])
+       then (b // [(i, Emp) | i <- g], capd // [(c, capd ! c + length g)])
        else bd
 
 checkKill :: BdPos -> BdState -> BdState
-checkKill i bd@(b, capd) = Dnl.dlof bd $ map checkDead $ nbrs b i
+checkKill i bd@(b, capd) = dlof bd $ map checkDead $ nbrs b i
 
 doMove :: BdState -> (Move, Color) -> BdState
 doMove bd@(b, capd) (move, color) = case move of
   Pass -> bd
-  Play i@(x, y) -> checkKill i (b Arr.// [(i, Stone color)], capd)
+  Play i@(x, y) -> checkKill i (b // [(i, Stone color)], capd)
 
 doMoves :: BdState -> [Move] -> BdState
-doMoves bd moves = foldl doMove bd $ zip moves $ iterate Dnl.cycSucc Blk
+doMoves bd moves = foldl doMove bd $ zip moves $ iterate cycSucc Blk
 
 data Flag = BoardSize String | PlayAs String | Ascii deriving Show
 type OptVals = (Int, Char, Bool)
-options :: [Opt.OptDescr Flag]
+options :: [OptDescr Flag]
 options = [
-  Opt.Option ['n'] ["boardsize"] (Opt.ReqArg BoardSize "n") "board size",
-  Opt.Option ['c'] ["color"] (Opt.ReqArg PlayAs "b|w|a|n") "color to play as",
-  Opt.Option ['a'] ["ascii"] (Opt.NoArg Ascii) "no gfx"]
+  Option ['n'] ["boardsize"] (ReqArg BoardSize "n") "board size",
+  Option ['c'] ["color"] (ReqArg PlayAs "b|w|a|n") "color to play as",
+  Option ['a'] ["ascii"] (NoArg Ascii) "no gfx"]
 procOpt :: Flag -> OptVals -> OptVals
 procOpt f (bdN, c, gfx) = case f of
   BoardSize bdN' -> (read bdN', c, gfx)
