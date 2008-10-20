@@ -198,21 +198,3 @@ doMove bd@(b, capd) (move, color) = case move of
 
 doMoves :: BdState -> [Move] -> BdState
 doMoves bd moves = foldl doMove bd $ zip moves $ iterate cycSucc Blk
-
-data Flag = BoardSize String | PlayAs String | Ascii deriving Show
-type OptVals = (Int, Char, Bool)
-options :: [OptDescr Flag]
-options = [
-  Option ['n'] ["boardsize"] (ReqArg BoardSize "n") "board size",
-  Option ['c'] ["color"] (ReqArg PlayAs "b|w|a|n") "color to play as",
-  Option ['a'] ["ascii"] (NoArg Ascii) "no gfx"]
-procOpt :: Flag -> OptVals -> OptVals
-procOpt f (bdN, c, gfx) = case f of
-  BoardSize bdN' -> (read bdN', c, gfx)
-  PlayAs c' -> case c' of
-    "b" -> (bdN, 'b', gfx)
-    "w" -> (bdN, 'w', gfx)
-    "a" -> (bdN, 'a', gfx)
-    "n" -> (bdN, 'n', gfx)
-    _ -> error "invalid play as arg (b|w|a|n)"
-  Ascii -> (bdN, c, False)
