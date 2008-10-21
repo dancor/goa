@@ -54,7 +54,7 @@ imgExt = ".png"
 
 imgNames :: [[Char]]
 imgNames = map (++ imgExt) $ ["wood", "black", "white"] ++
-  [h ++ v | h <- ["l", "m", "r"], v <- ["t", "m", "b"]]
+  [h ++ v | h <- ["l", "m", "r"], v <- ["t", "m", "b"]] ++ ["star"]
 
 empBd :: Array (Int, Int) (BdFill, Bool)
 empBd = listArray ((1, 1), (19, 19)) $ repeat (Emp, False)
@@ -85,6 +85,11 @@ drawBd gm = do
       bgPic = pics !! (3 * side x + (2 - side y) + 3)
     SDL.blitSurface bgPic Nothing screen (Just $
       SDL.Rect (spotPx * x - 16) (spotPx * (bdSize - y) + 16) 0 0)
+    -- fixme: n /= 19 cases
+    when (x `elem` [4, 10, 15] && y `elem` [4, 10, 15]) $ do
+      SDL.blitSurface (pics !! 12) Nothing screen (Just $
+        SDL.Rect (spotPx * x - 16) (spotPx * (bdSize - y) + 16) 0 0)
+      return ()
     case bdFill of
       Emp -> return ()
       Stone c -> do
