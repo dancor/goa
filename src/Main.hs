@@ -17,7 +17,6 @@ import qualified Gfx
 import qualified PosMTree as PMT
 import qualified Txt
 
-
 data Flag = BoardSize String | PlayAs String | TextDisp deriving Show
 type OptVals = (Int, Char, Bool)
 
