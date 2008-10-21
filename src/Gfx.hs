@@ -86,7 +86,7 @@ drawBd gm = do
     SDL.blitSurface bgPic Nothing screen (Just $
       SDL.Rect (spotPx * x - 16) (spotPx * (bdSize - y) + 16) 0 0)
     -- fixme: n /= 19 cases
-    when (x `elem` [4, 10, 15] && y `elem` [4, 10, 15]) $ do
+    when (x `elem` [4, 10, 16] && y `elem` [4, 10, 16]) $ do
       SDL.blitSurface (pics !! 12) Nothing screen (Just $
         SDL.Rect (spotPx * x - 16) (spotPx * (bdSize - y) + 16) 0 0)
       return ()

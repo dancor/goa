@@ -80,8 +80,10 @@ doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
       s <- hGetLine out
       putStrLn s
 
+      {-
       hPutStrLn inp "showboard"
       hFlush inp
+      -}
       {-
       hWaitForInput out 10
       whileM (hReady out) $ hGetLine out >>= putStrLn
