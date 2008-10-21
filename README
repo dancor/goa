@@ -1,8 +1,6 @@
 todo
-- thinner lines
-- star points
-
-other
-- what is common about all three front-ends
-  - only have to update display after changes
-- modes
+- scoring
+- restarting engine in middle game
+- web frontend
+- web tracking users
+- web tracking games
