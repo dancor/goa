@@ -6,6 +6,7 @@ import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
 import Data.Array
+import Data.Char
 import Go
 import Paths_goa
 import System.Directory
@@ -15,6 +16,7 @@ import System.IO
 import qualified Graphics.UI.SDL as SDL
 import qualified Graphics.UI.SDL.Image as Img
 import qualified Graphics.UI.SDL.Rotozoomer as Rot
+import qualified Graphics.UI.SDL.TTF as Font
 import qualified PosMTree as PMT
 
 data GfxDisp = GfxDisp
@@ -56,8 +58,8 @@ imgNames :: [[Char]]
 imgNames = map (++ imgExt) $ ["wood", "black", "white"] ++
   [h ++ v | h <- ["l", "m", "r"], v <- ["t", "m", "b"]] ++ ["star"]
 
-empBd :: Array (Int, Int) (BdFill, Bool)
-empBd = listArray ((1, 1), (19, 19)) $ repeat (Emp, False)
+empBd = (listArray ((1, 1), (19, 19)) $ repeat (Emp, False),
+  listArray (Blk, Wht) $ repeat 0)
 
 debug :: [Char] -> IO ()
 debug s = do
@@ -142,6 +144,23 @@ startGfx gm = do
   pics <- sequence . zipWith (=<<)
     (return:repeat (\ s -> Rot.zoom s (scale tileW) (scale tileH) True)) $
     map (\ x -> Img.load $ imgDir ++ "/" ++ x) imgNames
+  -- fixme figure out something real with fonts..
+  font <- Font.openFont "/usr/share/gnubg/fonts/Vera.ttf" 12
+  let
+    bdLtr s x1 y1 x2 y2 = do
+      surf <- Font.renderTextSolid font s $ SDL.Color 0 0 0
+      SDL.blitSurface surf Nothing (head pics) . Just $ SDL.Rect x1 y1 0 0
+      SDL.blitSurface surf Nothing (head pics) . Just $ SDL.Rect x2 y2 0 0
+    bdLabelNum i = bdLtr (show i) (xP 1) y (xP $ bdSize * tileW `div` 2 + 16) y
+      where
+      y = 32 * (bdSize - i + 1) - 6
+      xP = if i >= 10 then id else (+ 4)
+    bdLabelLtr i = bdLtr s x 1 x (bdSize * tileW `div` 2 + 18) where
+      s = [adjustCh $ ord 'A' + i - 1]
+      adjustCh c = chr $ if chr c >= 'I' then c + 1 else c
+      x = 32 * i - 2
+  mapM_ bdLabelNum [1..bdSize]
+  mapM_ bdLabelLtr [1..bdSize]
   SDL.setCaption progName ""
   return $ gm {gBdSize = bdSize, gGfx = gfx {gScreen = screen, gPics = pics}}
 
@@ -156,8 +175,9 @@ withGfx :: ((TVar (BdH, Array Color Int), MVar ())
             -> IO a)
            -> IO a
 withGfx f = SDL.withInit [SDL.InitVideo] $ do
+  Font.init
   debug "withGfx"
-  bd <- atomically $ newTVar (empBd, listArray (Blk, Wht) $ repeat 0)
+  bd <- atomically $ newTVar empBd
   redraw <- newMVar ()
   gm <- startGfx $ Game {
     gBdSize = 19,
@@ -172,3 +192,4 @@ withGfx f = SDL.withInit [SDL.InitVideo] $ do
   forkIO $ eventLoop gm
   forkIO $ redrawLoop gm
   f (bd, redraw)
+  -- fixme do we need Font.quit?
