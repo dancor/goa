@@ -21,7 +21,7 @@ data Player = Human | Comm Int
 data Move = Pass | Play BdPos deriving (Show, Ord, Eq)
 data Inp = InpMv Move | Undo | Go | GoAll | Quit
 data Color = Blk | Wht deriving (Eq, Bounded, Enum, Ord, Ix, Show)
-data BdFill = Emp | Stone Color
+data BdFill = Emp | Stone Color deriving (Eq, Show)
 type Bd = Array BdPos BdFill
 type BdH = Array BdPos (BdFill, Bool)
 type BdState = (Bd, Array Color Int)
@@ -83,7 +83,6 @@ doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
       whileM (hWaitForInput out 10) $ hGetLine out >>= putStrLn
       ) otherComms
     return $ fromJust $ PMT.ascend hist
-
 
 doTurn dispHist bdN pl comms hist@(_, ctx) gfx = let
     plN = (length $ PMT.getPath hist) `mod` (length pl)

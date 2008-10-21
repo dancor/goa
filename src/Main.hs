@@ -54,10 +54,11 @@ main = do
       'w' -> [Comm 0, Human]
       'a' -> [Human, Human]
       'n' -> [Comm 0, Comm 0]
-    dispF = if gfx then Gfx.dispHist else Txt.dispHist
-  (if gfx then Gfx.withGfx else id) $ do
+    dispF = if gfx then Gfx.dispHist else const Txt.dispHist
+  (if gfx then Gfx.withGfx else ($ error "incorrect gfx access")) $ \ gH -> do
     (inp, out, err, pid) <- runInteractiveCommand comm
-    histOrErr <- doTurn dispF bdN pl [(inp, out, err, pid)] PMT.empty gfx
+    -- kill the gfx..
+    histOrErr <- doTurn (dispF gH) bdN pl [(inp, out, err, pid)] PMT.empty gfx
     case histOrErr of
       Right hist -> do
         putStrLn "bye"

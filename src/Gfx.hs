@@ -1,17 +1,27 @@
 module Gfx where
 
+import Control.Applicative
+import Control.Arrow
 import Control.Concurrent
+import Control.Concurrent.STM
 import Control.Monad
 import Data.Array
+import Go
 import Paths_goa
+import System.Directory
 import System.Environment
+import System.FilePath.Posix
+import System.IO
 import qualified Graphics.UI.SDL as SDL
 import qualified Graphics.UI.SDL.Image as Img
 import qualified Graphics.UI.SDL.Rotozoomer as Rot
+import qualified PosMTree as PMT
+import qualified Txt
 
 data Game = Game {
   gBdSize :: Int,
-  gBd :: Array (Int, Int) Int,  -- 0 Empty, 1 Black, 2 White
+  gBd :: TVar (BdH, Array Color Int),
+  gRedraw :: MVar (),
   gGfx :: Gfx
   }
 
@@ -21,49 +31,85 @@ data Gfx = Gfx {
   gSpotPx :: Int
   }
 
+tileW :: Int
 tileW = 64
+tileH :: Int
 tileH = 64
+scrW :: Int
 scrW = 640
+scrH :: Int
 scrH = 640
 
+imgExt :: [Char]
 imgExt = ".png"
+
+imgNames :: [[Char]]
 imgNames = map (++ imgExt) $ ["wood", "black", "white"] ++
   [h ++ v | h <- ["l", "m", "r"], v <- ["t", "m", "b"]]
 
+empBd :: Array (Int, Int) (BdFill, Bool)
+empBd = listArray ((1, 1), (19, 19)) $ repeat (Emp, False)
+
+debug :: [Char] -> IO ()
+debug s = do
+  home <- getEnv "HOME"
+  let dir = home </> ".goa"
+  createDirectoryIfMissing False dir
+  appendFile (dir </> "debug") $ s ++ "\n"
+
 drawBd :: Game -> IO ()
 drawBd gm = do
+  debug "draw"
+  bd <- atomically . readTVar $ gBd gm
   let
-    bd = gBd gm
     bdSize = gBdSize gm
     gfx = gGfx gm
     screen = gScreen gfx
     pics = gPics gfx
     spotPx = 32--gSpotPx gfx   -- wat, why..
   SDL.blitSurface (head pics) Nothing screen . Just $ SDL.Rect 0 0 0 0
-  mapM_ (\ ((x, y), i) -> do
+  mapM_ (\ ((x, y), (bdFill, _)) -> do
     let
       side x = if x == bdSize then 2 else case x of
         1 -> 0
         _ -> 1
-      bgPic = pics !! (3 * side x + side y + 3)
+      bgPic = pics !! (3 * side x + (2 - side y) + 3)
     SDL.blitSurface bgPic Nothing screen (Just $
-      SDL.Rect (spotPx * x - 16) (spotPx * y - 16) 0 0)
-    when (i > 0) $ SDL.blitSurface (pics !! i) Nothing screen (Just $
-      SDL.Rect (spotPx * x - 16) (spotPx * y - 16) 0 0) >> return ()
-    ) $ assocs bd
+      SDL.Rect (spotPx * x - 16) (spotPx * (bdSize - y) + 16) 0 0)
+    case bdFill of
+      Emp -> return ()
+      Stone c -> do
+        SDL.blitSurface (pics !! (fromEnum c + 1)) Nothing screen (Just $
+          SDL.Rect (spotPx * x - 16) (spotPx * (bdSize - y) + 16) 0 0)
+        return ()
+    ) . assocs $ fst bd
   SDL.updateRect screen $ SDL.Rect 0 0 0 0
   return ()
 
-mainLoop :: Game -> IO ()
-mainLoop gm = do
+eventLoop :: Game -> IO ()
+eventLoop gm = do
   event <- SDL.waitEvent
   quit <- case event of
-    SDL.VideoExpose -> drawBd gm >> return False
-    SDL.KeyDown (SDL.Keysym SDL.SDLK_q _ _) -> return True
-    SDL.Quit -> return True
+    SDL.VideoExpose -> do
+      debug "expose"
+      putMVar (gRedraw gm) ()
+      return False
+    SDL.KeyDown (SDL.Keysym SDL.SDLK_q _ _) -> do
+      debug "q"
+      return True
+    SDL.Quit -> do
+      debug "quit"
+      return True
     _ -> return False
-  unless quit $ mainLoop gm
+  unless quit $ eventLoop gm
 
+redrawLoop :: Game -> IO ()
+redrawLoop gm = do
+  takeMVar $ gRedraw gm
+  drawBd gm
+  redrawLoop gm
+
+fI :: Int -> Double
 fI = fromIntegral
 
 startGfx :: Game -> IO Game
@@ -85,18 +131,42 @@ startGfx gm = do
   SDL.setCaption progName ""
   return $ gm {gBdSize = bdSize, gGfx = gfx {gScreen = screen, gPics = pics}}
 
-dispHist _ _ _ = return ()
+saveGfx :: (TVar (BdH, Array Color Int), MVar ())
+           -> (BdH, Array Color Int)
+           -> IO ()
+saveGfx (bdV, redrawV) bd = do
+  atomically $ writeTVar bdV bd
+  putMVar redrawV ()
 
+dispHist :: (TVar (BdH, Array Color Int), MVar ())
+            -> Int
+            -> PMT.PosMTree Move
+            -> t
+            -> IO ()
+dispHist gH bdN hist _ = saveGfx gH $ first (bdHilight l) (doMoves bdStInit p)
+  where
+  p = PMT.getPath hist
+  l = if null p then Pass else last p
+  bdStInit = (listArray ((1, 1), (bdN, bdN)) $ repeat Emp,
+    listArray (Blk, Wht) $ repeat 0)
+
+withGfx :: ((TVar (BdH, Array Color Int), MVar ())
+            -> IO a)
+           -> IO a
 withGfx f = SDL.withInit [SDL.InitVideo] $ do
+  debug "withGfx"
+  bd <- atomically $ newTVar (empBd, listArray (Blk, Wht) $ repeat 0)
+  redraw <- newMVar ()
   gm <- startGfx $ Game {
     gBdSize = 19,
-    gBd = listArray ((1, 1), (19, 19)) $ repeat 0,
+    gBd = bd,
+    gRedraw = redraw,
     gGfx = Gfx {
       gScreen = undefined,
       gPics = undefined,
       gSpotPx = 16
       }
     }
-  drawBd gm
-  forkIO $ mainLoop gm
-  f
+  forkIO $ eventLoop gm
+  forkIO $ redrawLoop gm
+  f (bd, redraw)
