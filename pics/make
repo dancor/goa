@@ -1,0 +1,13 @@
+#!/bin/sh
+
+convert -stroke black -strokewidth 8 -background none -size 128x128 -draw 'line 64,0 64,128' -draw 'line 0,64 128,64' null: mm.png
+convert -stroke black -strokewidth 8 -background none -size 128x128 -draw 'line 64,0 64,128' -draw 'line 64,64 128,64' null: lm.png
+convert -stroke black -strokewidth 8 -background none -size 128x128 -draw 'line 64,0 64,128' -draw 'line 0,64 64,64' null: rm.png
+
+convert -stroke black -strokewidth 8 -background none -size 128x128 -draw 'line 64,64 64,128' -draw 'line 0,64 128,64' null: mt.png
+convert -stroke black -strokewidth 8 -background none -size 128x128 -draw 'line 64,64 64,128' -draw 'line 60,64 128,64' null: lt.png
+convert -stroke black -strokewidth 8 -background none -size 128x128 -draw 'line 64,64 64,128' -draw 'line 0,64 68,64' null: rt.png
+
+convert -stroke black -strokewidth 8 -background none -size 128x128 -draw 'line 64,0 64,64' -draw 'line 0,64 128,64' null: mb.png
+convert -stroke black -strokewidth 8 -background none -size 128x128 -draw 'line 64,0 64,68' -draw 'line 64,64 128,64' null: lb.png
+convert -stroke black -strokewidth 8 -background none -size 128x128 -draw 'line 64,0 64,64' -draw 'line 0,64 68,64' null: rb.png
