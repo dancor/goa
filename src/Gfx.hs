@@ -16,7 +16,16 @@ import qualified Graphics.UI.SDL as SDL
 import qualified Graphics.UI.SDL.Image as Img
 import qualified Graphics.UI.SDL.Rotozoomer as Rot
 import qualified PosMTree as PMT
-import qualified Txt
+
+data GfxDisp = GfxDisp
+instance GameDisp GfxDisp where
+  gameDisp _ gH bdN hist =
+    saveGfx gH $ first (bdHilight l) (doMoves bdStInit p)
+    where
+    p = PMT.getPath hist
+    l = if null p then Pass else last p
+    bdStInit = (listArray ((1, 1), (bdN, bdN)) $ repeat Emp,
+      listArray (Blk, Wht) $ repeat 0)
 
 data Game = Game {
   gBdSize :: Int,
@@ -137,18 +146,6 @@ saveGfx :: (TVar (BdH, Array Color Int), MVar ())
 saveGfx (bdV, redrawV) bd = do
   atomically $ writeTVar bdV bd
   putMVar redrawV ()
-
-dispHist :: (TVar (BdH, Array Color Int), MVar ())
-            -> Int
-            -> PMT.PosMTree Move
-            -> t
-            -> IO ()
-dispHist gH bdN hist _ = saveGfx gH $ first (bdHilight l) (doMoves bdStInit p)
-  where
-  p = PMT.getPath hist
-  l = if null p then Pass else last p
-  bdStInit = (listArray ((1, 1), (bdN, bdN)) $ repeat Emp,
-    listArray (Blk, Wht) $ repeat 0)
 
 withGfx :: ((TVar (BdH, Array Color Int), MVar ())
             -> IO a)

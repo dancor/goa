@@ -8,6 +8,10 @@ import Go
 import qualified AnsiColor as AC
 import qualified PosMTree as PMT
 
+data TxtDisp = TxtDisp
+instance GameDisp TxtDisp where
+  gameDisp _ gH bdN hist = putStrLn $ showHist bdN hist
+
 -- show board state with highlighted last move
 -- currently only nxn with n in [9, 13, 19] supported for print out
 showBdHS :: (BdH, Array Color Int) -> String
@@ -57,12 +61,10 @@ showBdHS (bd, capd) = toUtf $ bg ++
     --(map (:[]) (take bdN $ ['a'..'h'] ++ ['j'..'z'])) ++ "\n"
     (map (:[]) (take bdN $ ['A'..'H'] ++ ['J'..'Z'])) ++ "\n"
 
-showHist :: Int -> Hist -> Bool -> String
-showHist bdN h gfx = showBdHS $ first (bdHilight l) (doMoves bdStInit $ p)
+showHist :: Int -> Hist -> String
+showHist bdN h = showBdHS $ first (bdHilight l) (doMoves bdStInit $ p)
   where
   p = PMT.getPath h
   l = if null p then Pass else last p
   bdStInit = (listArray ((1, 1), (bdN, bdN)) $ repeat Emp,
     listArray (Blk, Wht) $ repeat 0)
-
-dispHist bdN hist gfx = putStrLn $ showHist bdN hist gfx

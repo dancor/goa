@@ -1,6 +1,8 @@
 module Go where
 
 import Control.Arrow
+import Control.Concurrent
+import Control.Concurrent.STM
 import Control.Monad
 import FUtil
 import Data.Array
@@ -26,6 +28,10 @@ type Bd = Array BdPos BdFill
 type BdH = Array BdPos (BdFill, Bool)
 type BdState = (Bd, Array Color Int)
 type Hist = PMT.PosMTree Move
+
+class GameDisp a where
+  gameDisp :: a -> (TVar (BdH, Array Color Int), MVar ()) -> Int ->
+    PMT.PosMTree Move -> IO ()
 
 readPosInt :: String -> Maybe Int
 readPosInt s = if not (null s) && all isDigit s then Just $ read s else Nothing
@@ -84,11 +90,11 @@ doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
       ) otherComms
     return $ fromJust $ PMT.ascend hist
 
-doTurn dispHist bdN pl comms hist@(_, ctx) gfx = let
+doTurn dispHist bdN pl comms hist@(_, ctx) = let
     plN = (length $ PMT.getPath hist) `mod` (length pl)
     quit = return $ Right $ hist
   in if isGameOver hist then quit else do
-    dispHist bdN hist gfx
+    dispHist bdN hist
     case pl!!plN of
       Comm n -> let
           p@(inp, out, err, pid) = comms!!n
@@ -108,7 +114,7 @@ doTurn dispHist bdN pl comms hist@(_, ctx) gfx = let
               Right (InpMv move) -> do
                 --putStrLn $ show move
                 -- TODO: tell other comms here
-                doTurn dispHist bdN pl comms (PMT.descAdd move hist) gfx
+                doTurn dispHist bdN pl comms (PMT.descAdd move hist)
           else do
             return $ Left $ "unexpected response: " ++ s
       Human -> do
@@ -117,15 +123,15 @@ doTurn dispHist bdN pl comms hist@(_, ctx) gfx = let
           Undo -> do
             hist' <- doUndo bdN pl hist comms
             hist'' <- doUndo bdN pl hist' comms
-            doTurn dispHist bdN pl comms hist'' gfx
+            doTurn dispHist bdN pl comms hist''
           Quit -> quit
           -- FIXME?: 2-pl spec, is that ok, assumes exist. of comm 0
-          Go -> doTurn dispHist bdN ((if plN == 0 then id else reverse) [Comm 0, Human])
-            comms hist gfx
-          GoAll -> doTurn dispHist bdN [Comm 0, Comm 0] comms hist gfx
+          Go -> doTurn dispHist bdN ((if plN == 0 then id else reverse)
+            [Comm 0, Human]) comms hist
+          GoAll -> doTurn dispHist bdN [Comm 0, Comm 0] comms hist
           InpMv m -> let
-              cont = doTurn dispHist bdN pl comms (PMT.descAdd m hist) gfx
-              errC = doTurn dispHist bdN pl comms hist gfx in case m of
+              cont = doTurn dispHist bdN pl comms (PMT.descAdd m hist)
+              errC = doTurn dispHist bdN pl comms hist in case m of
             Play (x, y) -> if x < 1 || y < 1 || x > bdN || y > bdN
               then do
                 putStrLn "move is not on board"

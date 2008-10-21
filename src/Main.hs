@@ -9,13 +9,13 @@ import Control.Monad
 import Data.Array.Base
 import Data.IntMap
 import Data.List
+import Gfx
 import Go
 import System.Console.GetOpt
 import System.Environment
 import System.Process
-import qualified Gfx
+import Txt
 import qualified PosMTree as PMT
-import qualified Txt
 
 data Flag = BoardSize String | PlayAs String | TextDisp deriving Show
 type OptVals = (Int, Char, Bool)
@@ -54,11 +54,11 @@ main = do
       'w' -> [Comm 0, Human]
       'a' -> [Human, Human]
       'n' -> [Comm 0, Comm 0]
-    dispF = if gfx then Gfx.dispHist else const Txt.dispHist
+    dispF = if gfx then gameDisp GfxDisp else gameDisp TxtDisp
   (if gfx then Gfx.withGfx else ($ error "incorrect gfx access")) $ \ gH -> do
     (inp, out, err, pid) <- runInteractiveCommand comm
     -- kill the gfx..
-    histOrErr <- doTurn (dispF gH) bdN pl [(inp, out, err, pid)] PMT.empty gfx
+    histOrErr <- doTurn (dispF gH) bdN pl [(inp, out, err, pid)] PMT.empty
     case histOrErr of
       Right hist -> do
         putStrLn "bye"
