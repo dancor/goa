@@ -1,0 +1,1 @@
+../dist/build/autogen/Paths_goa.hs
