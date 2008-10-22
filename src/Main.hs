@@ -21,7 +21,7 @@ data Options = Options {
   optBoardSize :: Int,
   optPlayAs :: Char,
   optDispMode :: DispMode,
-  optKomi :: Maybe Rational
+  optKomi :: Maybe Float
   }
 
 defOpts = Options {
@@ -67,7 +67,8 @@ main = do
         5 -> 25
         6 -> 4
         _ -> 5.5
-    cmd = "gnugo --mode gtp --boardsize " ++ show (optBoardSize opts)
+    cmd = "gnugo --mode gtp --boardsize " ++ show (optBoardSize opts) ++
+      " --komi " ++ show komi
     pl = case optPlayAs opts of
       'b' -> [Human, Comm 0]
       'w' -> [Comm 0, Human]
