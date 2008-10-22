@@ -55,7 +55,8 @@ main = do
       'a' -> [Human, Human]
       'n' -> [Comm 0, Comm 0]
     dispF = if gfx then gameDisp GfxDisp else gameDisp TxtDisp
-  (if gfx then Gfx.withGfx else ($ error "incorrect gfx access")) $ \ gH -> do
+    initF = if gfx then Gfx.withGfx bdN else ($ error "incorrect gfx access")
+  initF $ \ gH -> do
     (inp, out, err, pid) <- runInteractiveCommand comm
     -- kill the gfx..
     histOrErr <- doTurn (dispF gH) bdN pl [(inp, out, err, pid)] PMT.empty

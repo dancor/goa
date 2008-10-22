@@ -46,10 +46,6 @@ tileW :: Int
 tileW = 64
 tileH :: Int
 tileH = 64
-scrW :: Int
-scrW = 640
-scrH :: Int
-scrH = 640
 
 imgExt :: [Char]
 imgExt = ".png"
@@ -58,7 +54,7 @@ imgNames :: [[Char]]
 imgNames = map (++ imgExt) $ ["wood", "black", "white"] ++
   [h ++ v | h <- ["l", "m", "r"], v <- ["t", "m", "b"]] ++ ["star"]
 
-empBd = (listArray ((1, 1), (19, 19)) $ repeat (Emp, False),
+empBd bdN = (listArray ((1, 1), (bdN, bdN)) $ repeat (Emp, False),
   listArray (Blk, Wht) $ repeat 0)
 
 debug :: [Char] -> IO ()
@@ -78,7 +74,10 @@ drawBd gm = do
     screen = gScreen gfx
     pics = gPics gfx
     spotPx = 32--gSpotPx gfx   -- wat, why..
-  SDL.blitSurface (head pics) Nothing screen . Just $ SDL.Rect 0 0 0 0
+    scrW = tileW * (bdSize + 1)
+    scrH = tileH * (bdSize + 1)
+  SDL.blitSurface (head pics) (Just $ SDL.Rect 0 0 scrW scrH) screen . Just $
+    SDL.Rect 0 0 0 0
   mapM_ (\ ((x, y), (bdFill, _)) -> do
     let
       side x = if x == bdSize then 2 else case x of
@@ -135,7 +134,8 @@ startGfx gm = do
     gfx = gGfx gm
     spotPx = gSpotPx gfx
   --SDL.showCursor False
-  screen <- SDL.setVideoMode scrW scrH 0 []
+  screen <- SDL.setVideoMode (tileW * (bdSize + 1) `div` 2)
+    (tileH * (bdSize + 1) `div` 2) 0 []
   progName <- getProgName
   dataDir <- getDataDir
   let
@@ -171,16 +171,13 @@ saveGfx (bdV, redrawV) bd = do
   atomically $ writeTVar bdV bd
   putMVar redrawV ()
 
-withGfx :: ((TVar (BdH, Array Color Int), MVar ())
-            -> IO a)
-           -> IO a
-withGfx f = SDL.withInit [SDL.InitVideo] $ do
+withGfx bdN f = SDL.withInit [SDL.InitVideo] $ do
   Font.init
   debug "withGfx"
-  bd <- atomically $ newTVar empBd
+  bd <- atomically . newTVar $ empBd bdN
   redraw <- newMVar ()
   gm <- startGfx $ Game {
-    gBdSize = 19,
+    gBdSize = bdN,
     gBd = bd,
     gRedraw = redraw,
     gGfx = Gfx {
