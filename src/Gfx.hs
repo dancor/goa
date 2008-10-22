@@ -1,5 +1,6 @@
 module Gfx where
 
+import Bg
 import Control.Applicative
 import Control.Arrow
 import Control.Concurrent
@@ -85,14 +86,19 @@ drawBd gm = do
       side x = if x == bdSize then 2 else case x of
         1 -> 0
         _ -> 1
-      bgPic = pics !! (3 * side x + (2 - side y) + 3)
-    SDL.blitSurface bgPic Nothing screen (Just $
+      bgPicI = case nToBg bdSize ! (x, y) of
+        BgReg LT LT -> 3
+        BgReg EQ LT -> 4
+        BgReg GT LT -> 5
+        BgReg LT EQ -> 6
+        BgReg EQ EQ -> 7
+        BgReg GT EQ -> 8
+        BgReg LT GT -> 9
+        BgReg EQ GT -> 10
+        BgReg GT GT -> 11
+        BgStar -> 12
+    SDL.blitSurface (pics !! bgPicI) Nothing screen (Just $
       SDL.Rect (spotPx * x - 16) (spotPx * (bdSize - y) + 16) 0 0)
-    -- fixme: n /= 19 cases
-    when (x `elem` [4, 10, 16] && y `elem` [4, 10, 16]) $ do
-      SDL.blitSurface (pics !! 12) Nothing screen (Just $
-        SDL.Rect (spotPx * x - 16) (spotPx * (bdSize - y) + 16) 0 0)
-      return ()
     case bdFill of
       Emp -> return ()
       Stone c -> do
