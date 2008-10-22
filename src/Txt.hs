@@ -3,6 +3,7 @@ module Txt where
 import Control.Arrow
 import Data.Array
 import Data.List
+import DispUtil
 import FUtil
 import Go
 import qualified AnsiColor as AC
@@ -62,7 +63,7 @@ showBdHS (bd, capd) = toUtf $ bg ++
     (map (:[]) (take bdN $ ['A'..'H'] ++ ['J'..'Z'])) ++ "\n"
 
 showHist :: Int -> Hist -> String
-showHist bdN h = showBdHS $ first (bdHilight l) (doMoves bdStInit $ p)
+showHist bdN h = showBdHS $ first (bdHilight l) (bdDoMoves bdStInit p)
   where
   p = PMT.getPath h
   l = if null p then Pass else last p

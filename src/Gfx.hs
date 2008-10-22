@@ -8,6 +8,7 @@ import Control.Concurrent.STM
 import Control.Monad
 import Data.Array
 import Data.Char
+import DispUtil
 import Go
 import Paths_goa
 import System.Directory
@@ -23,7 +24,7 @@ import qualified PosMTree as PMT
 data GfxDisp = GfxDisp
 instance GameDisp GfxDisp where
   gameDisp _ gH bdN hist =
-    saveGfx gH $ first (bdHilight l) (doMoves bdStInit p)
+    saveGfx gH $ first (bdHilight l) (bdDoMoves bdStInit p)
     where
     p = PMT.getPath hist
     l = if null p then Pass else last p

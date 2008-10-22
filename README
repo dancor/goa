@@ -1,6 +1,4 @@
 todo
-- komi
-- handicap
 - resignation
   move: p14
   = 
@@ -14,4 +12,6 @@ todo
 - web tracking games
 
 bugs
+- snapback takes seen as suicide..
+- goa -h10 is segfault instead of error bc of laziness
 - hangs at end sometimes?
