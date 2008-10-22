@@ -1,4 +1,6 @@
 todo
+- komi
+- handicap
 - resignation
   move: p14
   = 
@@ -6,9 +8,10 @@ todo
   = resign
 
   could not parse
-- smaller boards gfx
-- scoring
 - restarting engine in middle game
 - web frontend
 - web tracking users
 - web tracking games
+
+bugs
+- hangs at end sometimes?

@@ -21,7 +21,7 @@ type BdPos = (Int, Int)
 type Comm = (Handle, Handle, Handle, ProcessHandle)
 data Player = Human | Comm Int
 data Move = Pass | Play BdPos deriving (Show, Ord, Eq)
-data Inp = InpMv Move | Undo | Go | GoAll | Quit
+data Inp = InpMv Move | Undo | Score | Go | GoAll | Quit
 data Color = Blk | Wht deriving (Eq, Bounded, Enum, Ord, Ix, Show)
 data BdFill = Emp | Stone Color deriving (Eq, Show)
 type Bd = Array BdPos BdFill
@@ -43,12 +43,13 @@ bdHilight m b = case m of
 
 parseInp :: String -> Either String Inp
 parseInp s
- | s == "p" || s == "pass" = Right $ InpMv $ Pass
- | s == "q" || s == "quit" = Right $ Quit
- | s == "u" || s == "undo" = Right $ Undo
+ | s == "p" || s == "pass" = Right $ InpMv Pass
+ | s == "q" || s == "quit" = Right Quit
+ | s == "u" || s == "undo" = Right Undo
+ | s == "s" || s == "score" = Right Score
  | s == "g" || s == "go" = Right Go
  | s == "ga" || s == "goall" = Right GoAll
- | s == "" = Left $ "empty string?"
+ | s == "" = Left "empty string?"
  | otherwise =
   let ([s1], s2) = splitAt 1 s
       xRaw = ord $ toLower s1
@@ -56,7 +57,8 @@ parseInp s
       y = readPosInt s2 in
     case y of
       Nothing -> Left "could not parse"
-      Just yy -> if yy < 1 || yy > 19 then Left "out of range" else Right $ InpMv $ Play (x, yy)
+      Just yy -> if yy < 1 || yy > 19 then Left "out of range"
+        else Right . InpMv $ Play (x, yy)
 
 del i = uncurry (++) . second tail . splitAt i
 isComm p = case p of
@@ -72,7 +74,7 @@ doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
     print "already at beginning of game"
     return hist
   else do
-    mapM_ (\p@(inp, out, err, pid) -> do
+    mapM_ (\ p@(inp, out, err, pid) -> do
       hPutStrLn inp "undo"
       hFlush inp
       s <- hGetLine out
@@ -110,18 +112,29 @@ doTurn dispHist bdN pl comms hist@(_, ctx) = let
         putStrLn s2
         if "= " `isPrefixOf` s
           then do
-            case parseInp $ map toLower $ drop 2 s of
+            case parseInp . map toLower $ drop 2 s of
               Left err -> do
                 return $ Left err
               Right (InpMv move) -> do
                 --putStrLn $ show move
                 -- TODO: tell other comms here
                 doTurn dispHist bdN pl comms (PMT.descAdd move hist)
-          else do
-            return $ Left $ "unexpected response: " ++ s
+          else return . Left $ "unexpected response: " ++ s
       Human -> do
         mv <- repInp "move: " parseInp
         case mv of
+          Score -> do
+            mapM_ (\ p@(inp, out, err, pid) ->
+              do
+                hPutStrLn inp "final_score"
+                hFlush inp
+                s <- hGetLine out
+                putStrLn s
+                s <- hGetLine out
+                putStrLn s
+                return ()
+              ) comms
+            doTurn dispHist bdN pl comms hist
           Undo -> do
             hist' <- doUndo bdN pl hist comms
             hist'' <- doUndo bdN pl hist' comms
