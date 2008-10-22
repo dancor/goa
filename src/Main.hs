@@ -7,7 +7,6 @@
 import Control.Arrow
 import Control.Monad
 import Data.Array.Base
-import Data.IntMap
 import Data.List
 import Gfx
 import Go
@@ -17,26 +16,38 @@ import System.Process
 import Txt
 import qualified PosMTree as PMT
 
-data Flag = BoardSize String | PlayAs String | TextDisp deriving Show
-type OptVals = (Int, Char, Bool)
+data DispMode = DispModeTxt | DispModeGfx
+data Options = Options {
+  optBoardSize :: Int,
+  optPlayAs :: Char,
+  optDispMode :: DispMode,
+  optKomi :: Maybe Rational
+  }
 
-options :: [OptDescr Flag]
+defOpts = Options {
+  optBoardSize = 19,
+  optPlayAs = 'b',
+  optDispMode = DispModeGfx,
+  optKomi = Nothing
+  }
+
+options :: [OptDescr (Options -> Options)]
 options = [
-  Option ['n'] ["boardsize"] (ReqArg BoardSize "n") "board size",
-  Option ['c'] ["color"] (ReqArg PlayAs "b|w|a|n") "color to play as",
-  Option ['t'] ["text"] (NoArg TextDisp) "unicode text mode"
-  ]
-
-procOpt :: Flag -> OptVals -> OptVals
-procOpt f (bdN, c, gfx) = case f of
-  BoardSize bdN' -> (read bdN', c, gfx)
-  PlayAs c' -> case c' of
-    "b" -> (bdN, 'b', gfx)
-    "w" -> (bdN, 'w', gfx)
-    "a" -> (bdN, 'a', gfx)
-    "n" -> (bdN, 'n', gfx)
+  Option ['n'] ["boardsize"] (ReqArg (\ a o -> o {optBoardSize = read a}) "n")
+    "board size",
+  Option ['c'] ["color"] (ReqArg (\ a o -> o {optPlayAs = case a of
+    "b" -> 'b'
+    "w" -> 'w'
+    "a" -> 'a'
+    "n" -> 'n'
     _ -> error "invalid play as arg (b|w|a|n)"
-  TextDisp -> (bdN, c, False)
+    }) "b|w|a|n")
+    "color to play as",
+  Option ['t'] ["text"] (NoArg (\ o -> o {optDispMode = DispModeTxt}))
+    "unicode text mode",
+  Option ['k'] ["komi"] (ReqArg (\ a o -> o {optKomi = Just $ read a}) "n")
+    "komi"
+  ]
 
 main :: IO ()
 main = do
@@ -44,22 +55,32 @@ main = do
   let
     header = "Usage:"
     (opts, moreArgs) = case getOpt Permute options args of
-      (o, n, []) -> (o, n)
+      (o, n, []) -> (foldl (flip id) defOpts o, n)
       (_, _, errs) -> error $ concat errs ++ usageInfo header options
     [] = moreArgs
-    (bdN, c, gfx) = foldr procOpt (19, 'b', True) opts
-    comm = "gnugo --mode gtp --boardsize " ++ show bdN
-    pl = case c of
+    bdSize = optBoardSize opts
+    komi = case optKomi opts of
+      Just n -> n
+      Nothing -> if bdSize >= 19 then 7.5 else case bdSize of
+        3 -> 9
+        4 -> 2
+        5 -> 25
+        6 -> 4
+        _ -> 5.5
+    cmd = "gnugo --mode gtp --boardsize " ++ show (optBoardSize opts)
+    pl = case optPlayAs opts of
       'b' -> [Human, Comm 0]
       'w' -> [Comm 0, Human]
       'a' -> [Human, Human]
       'n' -> [Comm 0, Comm 0]
-    dispF = if gfx then gameDisp GfxDisp else gameDisp TxtDisp
-    initF = if gfx then Gfx.withGfx bdN else ($ error "incorrect gfx access")
+    (initF, dispF) = case optDispMode opts of
+      DispModeTxt -> (($ error "incorrect gfx access"), gameDisp TxtDisp)
+      DispModeGfx -> (Gfx.withGfx $ optBoardSize opts, gameDisp GfxDisp)
   initF $ \ gH -> do
-    (inp, out, err, pid) <- runInteractiveCommand comm
+    (inp, out, err, pid) <- runInteractiveCommand cmd
     -- kill the gfx..
-    histOrErr <- doTurn (dispF gH) bdN pl [(inp, out, err, pid)] PMT.empty
+    histOrErr <- doTurn (dispF gH) (optBoardSize opts) pl
+      [(inp, out, err, pid)] PMT.empty
     case histOrErr of
       Right hist -> do
         putStrLn "bye"
