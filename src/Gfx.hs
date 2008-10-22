@@ -54,6 +54,8 @@ imgNames :: [[Char]]
 imgNames = map (++ imgExt) $ ["wood", "black", "white"] ++
   [h ++ v | h <- ["l", "m", "r"], v <- ["t", "m", "b"]] ++ ["star"]
 
+empBd :: (Num t, Ix t, Num e) =>
+         t -> (Array (t, t) (BdFill, Bool), Array Color e)
 empBd bdN = (listArray ((1, 1), (bdN, bdN)) $ repeat (Emp, False),
   listArray (Blk, Wht) $ repeat 0)
 
@@ -171,6 +173,11 @@ saveGfx (bdV, redrawV) bd = do
   atomically $ writeTVar bdV bd
   putMVar redrawV ()
 
+withGfx :: Int
+           -> ((TVar (Array (Int, Int) (BdFill, Bool), Array Color Int),
+                MVar ())
+               -> IO a)
+           -> IO a
 withGfx bdN f = SDL.withInit [SDL.InitVideo] $ do
   Font.init
   debug "withGfx"

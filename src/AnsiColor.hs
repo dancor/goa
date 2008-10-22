@@ -2,8 +2,10 @@ module AnsiColor where
 
 import Data.Char
 
+esc :: [Char] -> [Char]
 esc x = [chr 27] ++ "[" ++ x
 
+normal :: [Char]
 normal = esc "0m"
 
 black = esc "30m"
@@ -32,4 +34,5 @@ magentaBg = esc "45m"
 cyanBg = esc "46m"
 whiteBg = esc "47m"
 
+clrScr :: [Char]
 clrScr = esc "2J" ++ esc "H"

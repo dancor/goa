@@ -11,6 +11,7 @@ data MTreeContext m = Top | ChildOfViaSibs (MTreeContext m) m (MTree m)
   deriving (Show, Eq)
 type PosMTree m = (MTree m, MTreeContext m)
 
+empty :: (MTree m, MTreeContext m1)
 empty = (MTree (M.empty), Top)
 
 -- follow child from current position
