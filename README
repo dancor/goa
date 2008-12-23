@@ -10,6 +10,7 @@ todo
 - web frontend
 - web tracking users
 - web tracking games
+- txtmode does not work outside certain n (easy to fix)
 
 bugs
 - snapback takes seen as suicide..

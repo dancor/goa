@@ -51,7 +51,7 @@ bdHilight m b = case m of
 
 parseInp :: String -> Either String Inp
 parseInp s
- | s == "p" || s == "pass" = Right $ InpMv Pass
+ | s == "p" || s == "pass" || s == "resign" = Right $ InpMv Pass
  | s == "q" || s == "quit" = Right Quit
  | s == "u" || s == "undo" = Right Undo
  | s == "s" || s == "score" = Right Score
