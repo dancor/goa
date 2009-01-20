@@ -12,5 +12,5 @@ data-files:     pics/black.png pics/lb.png pics/mb.png pics/rb.png pics/lm.png p
 executable:     goa
 ghc-options:    -threaded
 main-Is:        Main.hs
-other-modules:  PosMTree
+other-modules:  PomTree
 hs-source-dirs: src

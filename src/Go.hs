@@ -15,7 +15,7 @@ import System.Environment
 import System.IO
 import System.Process
 import qualified AnsiColor as AC
-import qualified PosMTree as PMT
+import qualified PomTree as PMT
 
 type BdPos = (Int, Int)
 type Comm = (Handle, Handle, Handle, ProcessHandle)
@@ -27,18 +27,18 @@ data BdFill = Emp | Stone Color deriving (Eq, Show)
 type Bd = Array BdPos BdFill
 type BdH = Array BdPos (BdFill, Bool)
 type BdState = (Bd, Array Color Int)
-type Hist = PMT.PosMTree Move
+type Hist = PMT.PomTree Move
 
 class GameDisp a where
   gameDisp :: a -> (TVar (BdH, Array Color Int), MVar ()) -> Int ->
-    PMT.PosMTree Move -> IO ()
+    PMT.PomTree Move -> IO ()
 
 data GoState = GoState {
-  gosDisp :: Int -> (PMT.MTree Move, PMT.MTreeContext Move) -> IO (),
+  gosDisp :: Int -> (PMT.OmTree Move, PMT.OmTreeContext Move) -> IO (),
   gosBdN :: Int,
   gosPlayers :: [Player],
   gosComms :: [(Handle, Handle, Handle, ProcessHandle)],
-  gosHist :: PMT.PosMTree Move
+  gosHist :: PMT.PomTree Move
   }
 
 readPosInt :: String -> Maybe Int
@@ -105,7 +105,17 @@ doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
       ) otherComms
     return $ fromJust $ PMT.ascend hist
 
-doTurn :: GoState -> IO (Either String (PMT.MTree Move, PMT.MTreeContext Move))
+saveGame :: GoState -> IO ()
+saveGame gos = do
+  let
+    hist = gosHist gos
+    bdN = gosBdN gos
+  print hist
+  -- todo: komi etc
+  putStrLn $
+    "(;FF[5]GM[1]SZ[" ++ show bdN ++ "]" ++ ".." ++ ")"
+
+doTurn :: GoState -> IO (Either String (PMT.OmTree Move, PMT.OmTreeContext Move))
 doTurn gos = let
   dispHist = gosDisp gos
   bdN = gosBdN gos
@@ -138,6 +148,7 @@ doTurn gos = let
                 doTurn $ GoState dispHist bdN pl comms (PMT.descAdd move hist)
           else return . Left $ "unexpected response: " ++ s
       Human -> do
+        saveGame gos
         mv <- repInp "move: " parseInp
         case mv of
           Score -> do
@@ -190,7 +201,7 @@ doMove mv gos = case mv of
     comms = gosComms gos
     hist = gosHist gos
 
-isGameOver :: PMT.PosMTree Move -> Bool
+isGameOver :: PMT.PomTree Move -> Bool
 isGameOver h = let p = PMT.getPath h in
   drop ((length p) - 4) p == replicate 4 Pass
 

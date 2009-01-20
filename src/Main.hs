@@ -14,7 +14,7 @@ import System.Console.GetOpt
 import System.Environment
 import System.Process
 import Txt
-import qualified PosMTree as PMT
+import qualified PomTree as PMT
 
 data DispMode = DispModeTxt | DispModeGfx
 data Options = Options {

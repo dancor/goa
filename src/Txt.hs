@@ -7,7 +7,7 @@ import DispUtil
 import FUtil
 import Go
 import qualified AnsiColor as AC
-import qualified PosMTree as PMT
+import qualified PomTree as PMT
 
 data TxtDisp = TxtDisp
 instance GameDisp TxtDisp where

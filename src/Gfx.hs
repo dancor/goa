@@ -19,7 +19,7 @@ import qualified Graphics.UI.SDL as SDL
 import qualified Graphics.UI.SDL.Image as Img
 import qualified Graphics.UI.SDL.Rotozoomer as Rot
 import qualified Graphics.UI.SDL.TTF as Font
-import qualified PosMTree as PMT
+import qualified PomTree as PMT
 
 data GfxDisp = GfxDisp
 instance GameDisp GfxDisp where
