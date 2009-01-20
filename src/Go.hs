@@ -105,15 +105,36 @@ doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
       ) otherComms
     return $ fromJust $ PMT.ascend hist
 
+sgf :: Int -> Color -> PMT.OmTree Move -> String
+sgf bdN col (PMT.OmTree mOms) =
+  case [";" ++ showMv m ++ sgf bdN col' om | (m, om) <- mOms] of
+    [s] -> s
+    ss -> concat ["(" ++ s ++ ")" | s <- ss]
+  where
+  mvCol = case col of
+    Blk -> "B"
+    Wht -> "W"
+  -- todo?: capitals for over n=26 boards
+  mvCoord i = chr (ord 'a' + i - 1)
+  showMv Pass = mvCol ++ "[]"
+  showMv (Play (x, y)) = mvCol ++ '[' : mvCoord x : mvCoord (bdN + 1 - y) : "]"
+  col' = cycSucc col
+
+histToTop :: (Ord m) => PMT.PomTree m -> PMT.PomTree m
+histToTop h = case PMT.ascend h of
+  Nothing -> h
+  Just h' -> histToTop h'
+
 saveGame :: GoState -> IO ()
 saveGame gos = do
   let
     hist = gosHist gos
+    histTop = fst $ histToTop hist
     bdN = gosBdN gos
   print hist
   -- todo: komi etc
   putStrLn $
-    "(;FF[5]GM[1]SZ[" ++ show bdN ++ "]" ++ ".." ++ ")"
+    "(;FF[5]GM[1]SZ[" ++ show bdN ++ "]" ++ sgf bdN Blk histTop ++ ")"
 
 doTurn :: GoState -> IO (Either String (PMT.OmTree Move, PMT.OmTreeContext Move))
 doTurn gos = let
