@@ -131,10 +131,11 @@ saveGame gos = do
     hist = gosHist gos
     histTop = fst $ histToTop hist
     bdN = gosBdN gos
-  print hist
+  home <- getEnv "HOME"
   -- todo: komi etc
-  putStrLn $
-    "(;FF[5]GM[1]SZ[" ++ show bdN ++ "]" ++ sgf bdN Blk histTop ++ ")"
+  -- todo: not hard-coded path lol
+  writeFile (home ++ "/g/go/goa/game.sgf") $
+    "(;FF[5]GM[1]SZ[" ++ show bdN ++ "]" ++ sgf bdN Blk histTop ++ ")\n"
 
 doTurn :: GoState -> IO (Either String (PMT.OmTree Move, PMT.OmTreeContext Move))
 doTurn gos = let
