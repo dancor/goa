@@ -6,8 +6,10 @@
 
 import Control.Arrow
 import Control.Monad
+import Control.Monad.Random
 import Data.Array.Base
 import Data.List
+import FUtil
 import Gfx
 import Go
 import System.Console.GetOpt
@@ -27,7 +29,7 @@ data Options = Options {
 
 defOpts = Options {
   optBoardSize = 19,
-  optPlayAs = 'b',
+  optPlayAs = 'r',
   optDispMode = DispModeGfx,
   optKomi = Nothing,
   optHandi = 0
@@ -42,8 +44,9 @@ options = [
     "w" -> 'w'
     "a" -> 'a'
     "n" -> 'n'
+    "r" -> 'r'
     _ -> error "invalid play as arg (b|w|a|n)"
-    }) "b|w|a|n")
+    }) "b|w|a|n|r")
     "color to play as",
   Option ['t'] ["text"] (NoArg (\ o -> o {optDispMode = DispModeTxt}))
     "unicode text mode",
@@ -92,7 +95,11 @@ main = do
     handi = optHandi opts
     cmd = "gnugo --mode gtp --boardsize " ++ show (optBoardSize opts) ++
       " --komi " ++ show komi
-    pl = case optPlayAs opts of
+  playAs <- case optPlayAs opts of
+    'r' -> evalRandIO $ choice "bw"
+    playAs' -> return playAs'
+  let
+    pl = case playAs of
       'b' -> [Human, Comm 0]
       'w' -> [Comm 0, Human]
       'a' -> [Human, Human]

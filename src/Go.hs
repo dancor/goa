@@ -17,6 +17,7 @@ import System.Process
 import qualified AnsiColor as AC
 import qualified PomTree as PMT
 
+-- (1, 1) is the bottom left
 type BdPos = (Int, Int)
 type Comm = (Handle, Handle, Handle, ProcessHandle)
 data Player = Human | Comm Int
@@ -167,7 +168,11 @@ doTurn gos = let
               Right (InpMv move) -> do
                 --putStrLn $ show move
                 -- TODO: tell other comms here
-                doTurn $ GoState dispHist bdN pl comms (PMT.descAdd move hist)
+                doTurn . GoState dispHist bdN pl comms $
+                  PMT.descAdd (rotMove move) hist
+                where
+                rotMove (Play (x, y)) = Play (bdN + 1 - x, bdN + 1 - y)
+                rotMove m = m
           else return . Left $ "unexpected response: " ++ s
       Human -> do
         saveGame gos
@@ -204,9 +209,12 @@ doMove mv gos = case mv of
     then return $ Left "Move is not on board."
     else do
       ss <- mapM (\ p@(inp, out, err, pid) -> do
+        let
+          xRot = bdN + 1 - x
+          yRot = bdN + 1 - y
         hPutStrLn inp $ "play b " ++
-          [chr $ ord 'a' + x - if x < 9 then 1 else 0] ++
-          show y
+          [chr $ ord 'a' + xRot - if xRot < 9 then 1 else 0] ++
+          show yRot
         hFlush inp
         s1 <- hGetLine out
         putStrLn s1
