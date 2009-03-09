@@ -4,6 +4,7 @@ import Control.Arrow
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
+import Control.Monad.Error
 import FUtil
 import Data.Array
 import Data.Char
@@ -93,15 +94,6 @@ doUndo bdN pl hist@(_, ctx) otherComms = if ctx == PMT.Top
       putStrLn s
       s <- hGetLine out
       putStrLn s
-
-      {-
-      hPutStrLn inp "showboard"
-      hFlush inp
-      -}
-      {-
-      hWaitForInput out 10
-      whileM (hReady out) $ hGetLine out >>= putStrLn
-      -}
       whileM (hWaitForInput out 10) $ hGetLine out >>= putStrLn
       ) otherComms
     return $ fromJust $ PMT.ascend hist
@@ -138,7 +130,15 @@ saveGame gos = do
   writeFile (home ++ "/g/go/goa/game.sgf") $
     "(;FF[5]GM[1]SZ[" ++ show bdN ++ "]" ++ sgf bdN Blk histTop ++ ")\n"
 
-doTurn :: GoState -> IO (Either String (PMT.OmTree Move, PMT.OmTreeContext Move))
+showMove :: Move -> String
+showMove (Play (x, y)) = [chr $ ord 'A' + x - if x < 9 then 1 else 0] ++ show y
+showMove Pass = "pass"
+
+rotMove :: Int -> Move -> Move
+rotMove bdN (Play (x, y)) = Play (bdN + 1 - x, bdN + 1 - y)
+rotMove _   m = m
+
+doTurn :: GoState -> ErrorT String IO (PMT.OmTree Move, PMT.OmTreeContext Move)
 doTurn gos = let
   dispHist = gosDisp gos
   bdN = gosBdN gos
@@ -146,40 +146,38 @@ doTurn gos = let
   comms = gosComms gos
   hist@(_, ctx) = gosHist gos
   plN = (length $ PMT.getPath hist) `mod` (length pl)
-  quit = return $ Right hist
+  quit = return hist
   in if isGameOver hist then quit else do
-    dispHist bdN hist
+    io $ dispHist bdN hist
     case pl!!plN of
       Comm n -> let
           p@(inp, out, err, pid) = comms!!n
           -- TODO: not using this?  no multicomm support
           otherComms = del n comms in do
-        hPutStrLn inp "genmove w"
-        hFlush inp
-        s <- hGetLine out
-        putStrLn s
-        s2 <- hGetLine out
-        putStrLn s2
+        io $ hPutStrLn inp "genmove w"
+        io $ hFlush inp
+        s <- io $ hGetLine out
+        --io $ putStrLn s
+        s2 <- io $ hGetLine out
+        --io $ putStrLn s2
         if "= " `isPrefixOf` s
           then do
             case parseInp . map toLower $ drop 2 s of
-              Left err -> do
-                return $ Left err
+              Left err -> throwError err
               Right (InpMv move) -> do
-                --putStrLn $ show move
+                let
+                  move' = rotMove bdN move
+                io . putStrLn $ showMove move'
                 -- TODO: tell other comms here
                 doTurn . GoState dispHist bdN pl comms $
-                  PMT.descAdd (rotMove move) hist
-                where
-                rotMove (Play (x, y)) = Play (bdN + 1 - x, bdN + 1 - y)
-                rotMove m = m
-          else return . Left $ "unexpected response: " ++ s
+                  PMT.descAdd move' hist
+          else throwError $ "unexpected response: " ++ s
       Human -> do
-        saveGame gos
-        mv <- repInp "move: " parseInp
+        io $ saveGame gos
+        mv <- io $ repInp "move: " parseInp
         case mv of
           Score -> do
-            mapM_ (\ p@(inp, out, err, pid) ->
+            io $ mapM_ (\ p@(inp, out, err, pid) ->
               do
                 hPutStrLn inp "final_score"
                 hFlush inp
@@ -191,30 +189,24 @@ doTurn gos = let
               ) comms
             doTurn $ GoState dispHist bdN pl comms hist
           Undo -> do
-            hist' <- doUndo bdN pl hist comms
-            hist'' <- doUndo bdN pl hist' comms
+            hist' <- io $ doUndo bdN pl hist comms
+            hist'' <- io $ doUndo bdN pl hist' comms
             doTurn $ GoState dispHist bdN pl comms hist''
           Quit -> quit
           -- FIXME?: 2-pl spec, is that ok, assumes exist. of comm 0
-          Go -> doTurn $ GoState dispHist bdN ((if plN == 0 then id else reverse)
-            [Comm 0, Human]) comms hist
+          Go -> doTurn $ GoState dispHist bdN
+            ((if plN == 0 then id else reverse) [Comm 0, Human]) comms hist
           GoAll -> doTurn $ GoState dispHist bdN [Comm 0, Comm 0] comms hist
-          InpMv m -> doMove m gos >>= \ r -> case r of
-            Left err -> putStrLn err >> doTurn gos
-            Right gos' -> doTurn gos'
+          InpMv m -> (doMove m gos `catchError`
+            (\ err -> io $ putStrLn err >> return gos)) >>= doTurn
 
-doMove :: Move -> GoState -> IO (Either String GoState)
+doMove :: Move -> GoState -> ErrorT String IO GoState
 doMove mv gos = case mv of
   Play (x, y) -> if x < 1 || y < 1 || x > bdN || y > bdN
-    then return $ Left "Move is not on board."
+    then throwError "Move is not on board."
     else do
-      ss <- mapM (\ p@(inp, out, err, pid) -> do
-        let
-          xRot = bdN + 1 - x
-          yRot = bdN + 1 - y
-        hPutStrLn inp $ "play b " ++
-          [chr $ ord 'a' + xRot - if xRot < 9 then 1 else 0] ++
-          show yRot
+      ss <- io $ mapM (\ p@(inp, out, err, pid) -> do
+        hPutStrLn inp $ "play b " ++ showMove (rotMove bdN $ Play (x, y))
         hFlush inp
         s1 <- hGetLine out
         putStrLn s1
@@ -222,11 +214,11 @@ doMove mv gos = case mv of
         putStrLn s2
         return s1) comms
       if "?" `isPrefixOf` head ss
-        then return $ Left "Engine fail."
+        then throwError "Computer rejected the move."
         else cont
   Pass -> cont
   where
-    cont = return . Right $ gos {gosHist = PMT.descAdd mv hist}
+    cont = return $ gos {gosHist = PMT.descAdd mv hist}
     bdN = gosBdN gos
     comms = gosComms gos
     hist = gosHist gos

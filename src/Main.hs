@@ -4,8 +4,10 @@
 -- sdl-graphics front-end (started)
 -- happs?-net front-end (no)
 
+import TurnGame hiding (doMove)
 import Control.Arrow
 import Control.Monad
+import Control.Monad.Error
 import Control.Monad.Random
 import Data.Array.Base
 import Data.List
@@ -19,6 +21,12 @@ import Txt
 import qualified PomTree as PMT
 
 data DispMode = DispModeTxt | DispModeGfx
+
+{-
+data GoGame
+instance Game GoGame GoMv Color DispMode where
+-}
+
 data Options = Options {
   optBoardSize :: Int,
   optPlayAs :: Char,
@@ -55,24 +63,6 @@ options = [
   Option ['h'] ["handicap"] (ReqArg (\ a o -> o {optHandi = read a}) "n")
     "handicap"
   ]
-
--- fixme make gen if poss or rename etc
-{-
-foldMM :: (Monad m, Monad n) => (a -> b -> m (n a)) -> a -> [b] -> m (n a)
-foldMM _ a []     = return $ return a
---foldMM f a (x:xs) = (f a x >>= \ fax -> foldMM f fax xs)
-foldMM f a (x:xs) = do
-  a' <- f a x
-  foldMM f a' xs
--}
-foldMM :: (a -> b -> IO (Either String a)) -> a -> [b] -> IO (Either String a)
-foldMM _ a []     = return $ return a
---foldMM f a (x:xs) = (f a x >>= \ fax -> foldMM f fax xs)
-foldMM f a (x:xs) = do
-  aOrErr <- f a x
-  case aOrErr of
-    Left err -> return $ Left err
-    Right a' -> foldMM f a' xs
 
 main :: IO ()
 main = do
@@ -122,14 +112,8 @@ main = do
     proc@(inp, out, err, pid) <- runInteractiveCommand cmd
     let
       gos = GoState (dispF gH) (optBoardSize opts) pl [proc] PMT.empty
-    gosHandiOrErr <- foldMM (flip doMove) gos . intersperse Pass .
-      map Play $ handiMoves handi
-    case gosHandiOrErr of
+    histOrErr <- runErrorT $ doTurn =<< (foldM (flip doMove) gos .
+      intersperse Pass . map Play $ handiMoves handi)
+    case histOrErr of
       Left err -> putStrLn err
-      Right gosHandi -> do
-        histOrErr <- doTurn gosHandi
-        case histOrErr of
-          Right hist -> do
-            putStrLn "bye"
-          Left err -> do
-            putStrLn err
+      Right hist -> putStrLn "bye"
