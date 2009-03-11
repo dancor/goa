@@ -4,29 +4,23 @@
 -- sdl-graphics front-end (started)
 -- happs?-net front-end (no)
 
-import TurnGame hiding (doMove)
 import Control.Arrow
 import Control.Monad
 import Control.Monad.Error
 import Control.Monad.Random
 import Data.Array.Base
 import Data.List
+import DispGfx
+import DispTxt
 import FUtil
-import Gfx
-import Go
 import System.Console.GetOpt
 import System.Environment
 import System.Process
-import Txt
+import TurnGame
+import qualified Go as Go
 import qualified PomTree as PMT
 
 data DispMode = DispModeTxt | DispModeGfx
-
-{-
-data GoGame
-instance Game GoGame GoMv Color DispMode where
--}
-
 data Options = Options {
   optBoardSize :: Int,
   optPlayAs :: Char,
@@ -90,13 +84,13 @@ main = do
     playAs' -> return playAs'
   let
     pl = case playAs of
-      'b' -> [Human, Comm 0]
-      'w' -> [Comm 0, Human]
-      'a' -> [Human, Human]
-      'n' -> [Comm 0, Comm 0]
+      'b' -> [Go.Human, Go.Comm 0]
+      'w' -> [Go.Comm 0, Go.Human]
+      'a' -> [Go.Human, Go.Human]
+      'n' -> [Go.Comm 0, Go.Comm 0]
     (initF, dispF) = case optDispMode opts of
-      DispModeTxt -> (($ error "incorrect gfx access"), gameDisp TxtDisp)
-      DispModeGfx -> (Gfx.withGfx $ optBoardSize opts, gameDisp GfxDisp)
+      DispModeTxt -> (($ error "incorrect gfx access"), DispTxt.disp)
+      DispModeGfx -> (DispGfx.withGfx $ optBoardSize opts, DispGfx.disp)
     mid = join (,) $ bdSize `div` 2 + 1
     handiMoves i = if i /= 0 && i < 2 || i > 9
       then error "Handicap must be >= 2 and <= 9." else case i of
@@ -111,9 +105,9 @@ main = do
   initF $ \ gH -> do
     proc@(inp, out, err, pid) <- runInteractiveCommand cmd
     let
-      gos = GoState (dispF gH) (optBoardSize opts) pl [proc] PMT.empty
-    histOrErr <- runErrorT $ doTurn =<< (foldM (flip doMove) gos .
-      intersperse Pass . map Play $ handiMoves handi)
+      gos = Go.GoState (dispF gH) bdSize pl [proc] PMT.empty
+    histOrErr <- runErrorT $ Go.playGame =<< (foldM (flip Go.doMove) gos .
+      intersperse Go.Pass . map Go.Play $ handiMoves handi)
     case histOrErr of
       Left err -> putStrLn err
       Right hist -> putStrLn "bye"

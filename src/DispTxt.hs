@@ -1,4 +1,4 @@
-module Txt where
+module DispTxt (disp) where
 
 import Control.Arrow
 import Data.Array
@@ -9,9 +9,8 @@ import Go
 import qualified AnsiColor as AC
 import qualified PomTree as PMT
 
-data TxtDisp = TxtDisp
-instance GameDisp TxtDisp where
-  gameDisp _ gH bdN hist = putStrLn $ showHist bdN hist
+disp :: a -> GoState -> Hist -> IO ()
+disp _ gos = putStrLn . showHist (gosBdN gos)
 
 -- show board state with highlighted last move
 -- currently only nxn with n in [9, 13, 19] supported for print out

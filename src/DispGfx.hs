@@ -1,4 +1,4 @@
-module Gfx where
+module DispGfx (disp, withGfx) where
 
 import Bg
 import Control.Applicative
@@ -21,15 +21,14 @@ import qualified Graphics.UI.SDL.Rotozoomer as Rot
 import qualified Graphics.UI.SDL.TTF as Font
 import qualified PomTree as PMT
 
-data GfxDisp = GfxDisp
-instance GameDisp GfxDisp where
-  gameDisp _ gH bdN hist =
-    saveGfx gH $ first (bdHilight l) (bdDoMoves bdStInit p)
-    where
-    p = PMT.getPath hist
-    l = if null p then Pass else last p
-    bdStInit = (listArray ((1, 1), (bdN, bdN)) $ repeat Emp,
-      listArray (Blk, Wht) $ repeat 0)
+disp :: (TVar (BdH, Array Color Int), MVar ()) -> GoState -> Hist -> IO ()
+disp gH gos hist = saveGfx gH $ first (bdHilight l) (bdDoMoves bdStInit p)
+  where
+  p = PMT.getPath hist
+  l = if null p then Pass else last p
+  bdStInit = (listArray ((1, 1), (bdN, bdN)) $ repeat Emp,
+    listArray (Blk, Wht) $ repeat 0)
+  bdN = gosBdN gos
 
 data Game = Game {
   gBdSize :: Int,

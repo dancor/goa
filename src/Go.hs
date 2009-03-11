@@ -17,31 +17,33 @@ import System.IO
 import System.Process
 import qualified AnsiColor as AC
 import qualified PomTree as PMT
+import qualified TurnGame as TG
 
 -- (1, 1) is the bottom left
 type BdPos = (Int, Int)
 type Comm = (Handle, Handle, Handle, ProcessHandle)
 data Player = Human | Comm Int
-data Move = Pass | Play BdPos deriving (Show, Ord, Eq)
+data Move = Pass | Play BdPos
+  deriving (Show, Ord, Eq)
 data Inp = InpMv Move | Undo | Score | Go | GoAll | Quit
-data Color = Blk | Wht deriving (Eq, Bounded, Enum, Ord, Ix, Show)
-data BdFill = Emp | Stone Color deriving (Eq, Show)
+data Color = Blk | Wht
+  deriving (Eq, Bounded, Enum, Ord, Ix, Show)
+data BdFill = Emp | Stone Color
+  deriving (Eq, Show)
 type Bd = Array BdPos BdFill
 type BdH = Array BdPos (BdFill, Bool)
 type BdState = (Bd, Array Color Int)
 type Hist = PMT.PomTree Move
 
-class GameDisp a where
-  gameDisp :: a -> (TVar (BdH, Array Color Int), MVar ()) -> Int ->
-    PMT.PomTree Move -> IO ()
-
 data GoState = GoState {
-  gosDisp :: Int -> (PMT.OmTree Move, PMT.OmTreeContext Move) -> IO (),
+  gosDisp :: GoState -> (PMT.OmTree Move, PMT.OmTreeContext Move) -> IO (),
   gosBdN :: Int,
   gosPlayers :: [Player],
   gosComms :: [(Handle, Handle, Handle, ProcessHandle)],
   gosHist :: PMT.PomTree Move
   }
+
+--instance TG.TurnGame GoState Move Player where
 
 readPosInt :: String -> Maybe Int
 readPosInt s = if not (null s) && all isDigit s then Just $ read s else Nothing
@@ -138,8 +140,9 @@ rotMove :: Int -> Move -> Move
 rotMove bdN (Play (x, y)) = Play (bdN + 1 - x, bdN + 1 - y)
 rotMove _   m = m
 
-doTurn :: GoState -> ErrorT String IO (PMT.OmTree Move, PMT.OmTreeContext Move)
-doTurn gos = let
+playGame :: GoState ->
+  ErrorT String IO (PMT.OmTree Move, PMT.OmTreeContext Move)
+playGame gos = let
   dispHist = gosDisp gos
   bdN = gosBdN gos
   pl = gosPlayers gos
@@ -148,7 +151,7 @@ doTurn gos = let
   plN = (length $ PMT.getPath hist) `mod` (length pl)
   quit = return hist
   in if isGameOver hist then quit else do
-    io $ dispHist bdN hist
+    io $ dispHist gos hist
     case pl!!plN of
       Comm n -> let
           p@(inp, out, err, pid) = comms!!n
@@ -169,7 +172,7 @@ doTurn gos = let
                   move' = rotMove bdN move
                 io . putStrLn $ showMove move'
                 -- TODO: tell other comms here
-                doTurn . GoState dispHist bdN pl comms $
+                playGame . GoState dispHist bdN pl comms $
                   PMT.descAdd move' hist
           else throwError $ "unexpected response: " ++ s
       Human -> do
@@ -187,18 +190,18 @@ doTurn gos = let
                 putStrLn s
                 return ()
               ) comms
-            doTurn $ GoState dispHist bdN pl comms hist
+            playGame $ GoState dispHist bdN pl comms hist
           Undo -> do
             hist' <- io $ doUndo bdN pl hist comms
             hist'' <- io $ doUndo bdN pl hist' comms
-            doTurn $ GoState dispHist bdN pl comms hist''
+            playGame $ GoState dispHist bdN pl comms hist''
           Quit -> quit
           -- FIXME?: 2-pl spec, is that ok, assumes exist. of comm 0
-          Go -> doTurn $ GoState dispHist bdN
+          Go -> playGame $ GoState dispHist bdN
             ((if plN == 0 then id else reverse) [Comm 0, Human]) comms hist
-          GoAll -> doTurn $ GoState dispHist bdN [Comm 0, Comm 0] comms hist
+          GoAll -> playGame $ GoState dispHist bdN [Comm 0, Comm 0] comms hist
           InpMv m -> (doMove m gos `catchError`
-            (\ err -> io $ putStrLn err >> return gos)) >>= doTurn
+            (\ err -> io $ putStrLn err >> return gos)) >>= playGame
 
 doMove :: Move -> GoState -> ErrorT String IO GoState
 doMove mv gos = case mv of
