@@ -14,7 +14,7 @@ disp _ gos = putStrLn . showHist (gosBdN gos)
 
 -- show board state with highlighted last move
 -- currently only nxn with n in [9, 13, 19] supported for print out
-showBdHS :: (BdH, Array Color Int) -> String
+showBdHS :: (BdHilight, Array Color Int) -> String
 showBdHS (bd, capd) = toUtf $ bg ++
   cap header (unlines $ zipWith cap (map
     (padl ' ' logBdN . show)

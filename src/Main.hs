@@ -13,11 +13,10 @@ import Data.List
 import DispGfx
 import DispTxt
 import FUtil
+import Go
 import System.Console.GetOpt
 import System.Environment
 import System.Process
-import TurnGame
-import qualified Go as Go
 import qualified PomTree as PMT
 
 data DispMode = DispModeTxt | DispModeGfx
@@ -84,10 +83,10 @@ main = do
     playAs' -> return playAs'
   let
     pl = case playAs of
-      'b' -> [Go.Human, Go.Comm 0]
-      'w' -> [Go.Comm 0, Go.Human]
-      'a' -> [Go.Human, Go.Human]
-      'n' -> [Go.Comm 0, Go.Comm 0]
+      'b' -> [Human, Comm 0]
+      'w' -> [Comm 0, Human]
+      'a' -> [Human, Human]
+      'n' -> [Comm 0, Comm 0]
     (initF, dispF) = case optDispMode opts of
       DispModeTxt -> (($ error "incorrect gfx access"), DispTxt.disp)
       DispModeGfx -> (DispGfx.withGfx $ optBoardSize opts, DispGfx.disp)
@@ -105,9 +104,9 @@ main = do
   initF $ \ gH -> do
     proc@(inp, out, err, pid) <- runInteractiveCommand cmd
     let
-      gos = Go.GoState (dispF gH) bdSize pl [proc] PMT.empty
-    histOrErr <- runErrorT $ Go.playGame =<< (foldM (flip Go.doMove) gos .
-      intersperse Go.Pass . map Go.Play $ handiMoves handi)
+      gos = GoState (dispF gH) bdSize pl [proc] PMT.empty
+    histOrErr <- runErrorT $ playGame =<< (foldM (flip doMove) gos .
+      intersperse Pass . map Play $ handiMoves handi)
     case histOrErr of
       Left err -> putStrLn err
       Right hist -> putStrLn "bye"

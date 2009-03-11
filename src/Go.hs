@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Go where
 
 import Control.Arrow
@@ -31,7 +33,7 @@ data Color = Blk | Wht
 data BdFill = Emp | Stone Color
   deriving (Eq, Show)
 type Bd = Array BdPos BdFill
-type BdH = Array BdPos (BdFill, Bool)
+type BdHilight = Array BdPos (BdFill, Bool)
 type BdState = (Bd, Array Color Int)
 type Hist = PMT.PomTree Move
 
@@ -43,12 +45,21 @@ data GoState = GoState {
   gosHist :: PMT.PomTree Move
   }
 
---instance TG.TurnGame GoState Move Player where
+-- data DispH = DispH (TVar (BdHilight, Array Color Int), MVar ())
+
+instance TG.TurnGame GoState Move where
+  doMove    = doMove
+  playGame  = playGame
+  --readMove  = undefined
+  --whoseTurn = undefined
+  --compMove  = undefined
+  --initDisp  = undefined
+  --disp      = undefined
 
 readPosInt :: String -> Maybe Int
 readPosInt s = if not (null s) && all isDigit s then Just $ read s else Nothing
 
-bdHilight :: Move -> Bd -> BdH
+bdHilight :: Move -> Bd -> BdHilight
 bdHilight m b = case m of
   Pass -> fmap (\p -> (p, False)) b
   Play i -> (fmap (\p -> (p, False)) b) // [(i, (b ! i, True))]

@@ -21,7 +21,7 @@ import qualified Graphics.UI.SDL.Rotozoomer as Rot
 import qualified Graphics.UI.SDL.TTF as Font
 import qualified PomTree as PMT
 
-disp :: (TVar (BdH, Array Color Int), MVar ()) -> GoState -> Hist -> IO ()
+disp :: (TVar (BdHilight, Array Color Int), MVar ()) -> GoState -> Hist -> IO ()
 disp gH gos hist = saveGfx gH $ first (bdHilight l) (bdDoMoves bdStInit p)
   where
   p = PMT.getPath hist
@@ -32,7 +32,7 @@ disp gH gos hist = saveGfx gH $ first (bdHilight l) (bdDoMoves bdStInit p)
 
 data Game = Game {
   gBdSize :: Int,
-  gBd :: TVar (BdH, Array Color Int),
+  gBd :: TVar (BdHilight, Array Color Int),
   gRedraw :: MVar (),
   gGfx :: Gfx
   }
@@ -172,8 +172,8 @@ startGfx gm = do
   SDL.setCaption progName ""
   return $ gm {gBdSize = bdSize, gGfx = gfx {gScreen = screen, gPics = pics}}
 
-saveGfx :: (TVar (BdH, Array Color Int), MVar ())
-           -> (BdH, Array Color Int)
+saveGfx :: (TVar (BdHilight, Array Color Int), MVar ())
+           -> (BdHilight, Array Color Int)
            -> IO ()
 saveGfx (bdV, redrawV) bd = do
   atomically $ writeTVar bdV bd
