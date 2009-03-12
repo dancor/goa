@@ -7,7 +7,7 @@ import DispUtil
 import FUtil
 import Go
 import qualified AnsiColor as AC
-import qualified PomTree as PMT
+import qualified Data.PomTree as PMT
 
 disp :: a -> GoState -> Hist -> IO ()
 disp _ gos = putStrLn . showHist (gosBdN gos)

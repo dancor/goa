@@ -18,7 +18,7 @@ import System.Environment
 import System.IO
 import System.Process
 import qualified AnsiColor as AC
-import qualified PomTree as PMT
+import qualified Data.PomTree as PMT
 import qualified TurnGame as TG
 
 -- (1, 1) is the bottom left

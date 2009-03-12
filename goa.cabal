@@ -7,11 +7,10 @@ synopsis:       go color-ascii/gfx client (supports gtp)
 build-type:     Simple
 build-depends:  Cabal, FUtil, SDL, SDL-gfx, SDL-image, SDL-ttf, array, base,
                 containers, directory, filepath, haskell98, process, stm,
-                MonadRandom, mtl
+                MonadRandom, mtl, PomTree
 data-files:     pics/black.png pics/lb.png pics/mb.png pics/rb.png pics/lm.png pics/mm.png pics/rm.png pics/lt.png pics/mt.png pics/rt.png pics/white.png pics/wood.png, pics/star.png
 
 executable:     goa
 ghc-options:    -threaded
-main-Is:        Main.hs
-other-modules:  PomTree
+main-is:        Main.hs
 hs-source-dirs: src

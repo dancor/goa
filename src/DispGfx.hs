@@ -15,11 +15,11 @@ import System.Directory
 import System.Environment
 import System.FilePath.Posix
 import System.IO
+import qualified Data.PomTree as PMT
 import qualified Graphics.UI.SDL as SDL
 import qualified Graphics.UI.SDL.Image as Img
 import qualified Graphics.UI.SDL.Rotozoomer as Rot
 import qualified Graphics.UI.SDL.TTF as Font
-import qualified PomTree as PMT
 
 disp :: (TVar (BdHilight, Array Color Int), MVar ()) -> GoState -> Hist -> IO ()
 disp gH gos hist = saveGfx gH $ first (bdHilight l) (bdDoMoves bdStInit p)
